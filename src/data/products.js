@@ -1,7 +1,7 @@
 // Catálogo Mr. Elote
-// NOTA: la descripción y precios se transcribieron desde capturas de pantalla
-// de baja resolución del sitio original en Canva. Revisa y ajusta los textos
-// y precios marcados como aproximados antes de publicar.
+// Textos y precios verificados contra capturas de pantalla en alta
+// resolución del sitio original. Los que aún no se han confirmado están
+// marcados con un comentario "TODO".
 
 export const quickLinks = [
   { id: 'desgranado', label: 'Desgranado' },
@@ -18,6 +18,7 @@ export const products = [
   {
     id: 'desgranado',
     name: 'Desgranado',
+    // TODO: confirmar descripción y foto (aún no enviadas)
     description:
       'Papas a la Francesa, Salchicha Americana, Queso, Maíz, Carne, Pollo, Pepitas y Salsas Artesanales.',
     prices: [
@@ -30,6 +31,7 @@ export const products = [
   {
     id: 'salchipapa',
     name: 'Salchipapa',
+    // TODO: confirmar descripción y foto (aún no enviadas)
     description:
       'Papas a la Francesa, Salchicha Americana, Tocineta, Queso, Maíz, Pollo, Pepitas y Salsas Artesanales.',
     prices: [
@@ -42,6 +44,7 @@ export const products = [
   {
     id: 'mechada',
     name: 'Mechada',
+    // TODO: confirmar descripción y foto (aún no enviadas)
     description:
       'Carne Desmechada, Maduro, Salchicha Americana, Papas a la Francesa, Pico de Gallo y Salsas Artesanales.',
     prices: [{ people: 2, price: 45000 }],
@@ -53,15 +56,15 @@ export const products = [
     description:
       'Chorizo, Chicharrón, Yuca, Queso, Papas a la Francesa y Salsas Artesanales.',
     prices: [{ people: 2, price: 45000 }],
-    image: null,
+    image: '/images/callejera.jpg',
   },
   {
     id: 'aborrajada',
     name: 'Aborrajada',
     description:
-      'Papas a la Francesa, Salchicha Americana, Carne Angus, Maíz, Frito, Queso y Salsas Artesanales.',
+      'Papas a la Francesa, Salchicha Ranchera, Carne Angus, Madurito, Queso y Salsas Artesanales.',
     prices: [{ people: 2, price: 42000 }],
-    image: null,
+    image: '/images/aborrajada.jpg',
   },
   {
     id: 'chicharronuda',
@@ -69,7 +72,7 @@ export const products = [
     description:
       'Papas a la Francesa, Queso, Salchicha Americana, Chicharrón Carnudo y Salsas Artesanales.',
     prices: [{ people: 2, price: 40000 }],
-    image: null,
+    image: '/images/chicharronuda.jpg',
   },
   {
     id: 'ranchi-nuggets',
@@ -77,7 +80,7 @@ export const products = [
     description:
       'Papas a la Francesa, Queso, Salchicha Ranchera, Nuggets de Pollo y Salsas Artesanales.',
     prices: [{ people: 2, price: 35000 }],
-    image: null,
+    image: '/images/ranchi-nuggets.jpg',
   },
   {
     id: 'nachos',
@@ -85,38 +88,37 @@ export const products = [
     description:
       'Nachos con Queso, Pollo, Carne, Pico de Gallo y Salsas Artesanales.',
     prices: [{ people: 2, price: 35000 }],
-    image: null,
+    image: '/images/nachos.jpg',
   },
   {
     id: 'desgranado-especial',
     name: 'Desgranado Especial',
     description:
-      'Carne, Pollo, Salchicha Americana, Papas a la Francesa, Queso, Pollo Asado, Chicharrón y Salsas Artesanales.',
-    prices: [{ people: 4, price: 80000 }],
-    image: null,
+      'Carne, Pollo, Salchicha, Maduro, Maicitos, Papas a la Francesa, Queso, Ripio, Pollo Apanado, Chicharrón y Salsas Artesanales.',
+    prices: [{ people: 6, price: 80000 }],
+    image: '/images/desgranado-especial.jpg',
   },
   {
     id: 'porcion-chicharron',
     name: 'Porción de Chicharrón',
     description: 'Papas a la Francesa y Chicharrón Carnudo.',
     prices: [{ people: 1, price: 22000 }],
-    image: null,
+    image: '/images/porcion-chicharron.jpg',
   },
   {
     id: 'madurita',
     name: 'Madurita',
-    description:
-      'Maduro, Guayaba, Queso, Carne Desmechada y Salsas Artesanales.',
+    description: 'Maduro Guayabo, Queso, Carne Desmechada y Salchicha Ranchera.',
     prices: [{ people: 1, price: 22000 }],
-    image: null,
+    image: '/images/madurita.jpg',
   },
   {
     id: 'burrito',
     name: 'Burrito',
     description:
-      'Pollo, Carne, Maíz, Tortilla, Lechuga, Salsas Artesanales y Porción de Papas.',
+      'Pollo, Carne, Maíz, Tocineta, Lechuga, Tortillas, Salsas Artesanales y Porción de Papas.',
     prices: [{ people: 1, price: 25000 }],
-    image: null,
+    image: '/images/burrito.jpg',
   },
 ]
 

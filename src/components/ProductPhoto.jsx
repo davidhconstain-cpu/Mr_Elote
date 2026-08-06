@@ -2,7 +2,7 @@ export default function ProductPhoto({ image, name }) {
   if (image) {
     return (
       <div className="product-photo">
-        <img src={image} alt={name} loading="lazy" />
+        <img src={image} alt={name} />
       </div>
     )
   }

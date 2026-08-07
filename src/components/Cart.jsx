@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { useMesa } from '../context/MesaContext'
 import { crearPedido } from '../api/pedidosApi'
 import { formatPrice } from '../utils/formatPrice'
 import AddressPicker from './AddressPicker'
@@ -8,19 +9,38 @@ import AddressPicker from './AddressPicker'
 export default function Cart() {
   const { items, setQuantity, removeItem, clear, total, count } = useCart()
   const { isAuthenticated, accessToken, openAuthModal } = useAuth()
+  const { mesa, codigo: mesaCodigo, loading: mesaLoading } = useMesa()
   const [open, setOpen] = useState(false)
   const [tipo, setTipo] = useState('recoger')
+  const [tipoTouched, setTipoTouched] = useState(false)
   const [direccionId, setDireccionId] = useState(null)
   const [observaciones, setObservaciones] = useState('')
   const [status, setStatus] = useState('idle') // idle | sending | success | error
   const [error, setError] = useState(null)
   const [confirmedOrder, setConfirmedOrder] = useState(null)
 
+  // Si el cliente escaneó el QR de una mesa, ese es el tipo de pedido más
+  // probable — pero solo lo preseleccionamos mientras no haya tocado el
+  // selector él mismo.
+  useEffect(() => {
+    if (!mesaLoading && mesa && !tipoTouched) {
+      setTipo('local')
+    }
+  }, [mesaLoading, mesa, tipoTouched])
+
   if (count === 0 && status !== 'success') {
     return null
   }
 
-  const puedeConfirmar = tipo === 'recoger' || (tipo === 'domicilio' && isAuthenticated && direccionId != null)
+  function elegirTipo(nuevoTipo) {
+    setTipo(nuevoTipo)
+    setTipoTouched(true)
+  }
+
+  const puedeConfirmar =
+    tipo === 'recoger' ||
+    (tipo === 'domicilio' && isAuthenticated && direccionId != null) ||
+    (tipo === 'local' && mesa != null)
 
   async function handleConfirmar() {
     setStatus('sending')
@@ -29,6 +49,7 @@ export default function Cart() {
       const pedido = await crearPedido({
         tipo,
         direccionId: tipo === 'domicilio' ? direccionId : undefined,
+        mesaCodigoQr: tipo === 'local' ? mesaCodigo : undefined,
         items,
         observaciones,
         token: accessToken,
@@ -49,9 +70,17 @@ export default function Cart() {
     if (status === 'success') {
       setStatus('idle')
       setConfirmedOrder(null)
-      setTipo('recoger')
+      setTipo(mesa ? 'local' : 'recoger')
+      setTipoTouched(false)
     }
   }
+
+  const etiquetaConfirmar =
+    tipo === 'domicilio'
+      ? 'Confirmar pedido a domicilio'
+      : tipo === 'local'
+        ? 'Confirmar pedido en la mesa'
+        : 'Confirmar pedido para recoger'
 
   return (
     <>
@@ -84,7 +113,9 @@ export default function Cart() {
                 <p className="cart-confirmation-note">
                   {confirmedOrder.tipo === 'domicilio'
                     ? 'Te avisamos cuando salga hacia tu dirección.'
-                    : 'Te avisamos cuando esté listo para recoger.'}
+                    : confirmedOrder.tipo === 'local'
+                      ? 'Ya va para tu mesa, en un momento te lo llevamos.'
+                      : 'Te avisamos cuando esté listo para recoger.'}
                 </p>
                 <button type="button" className="cart-confirm-button" onClick={handleCerrar}>
                   Cerrar
@@ -141,17 +172,26 @@ export default function Cart() {
                       <button
                         type="button"
                         className={tipo === 'recoger' ? 'active' : ''}
-                        onClick={() => setTipo('recoger')}
+                        onClick={() => elegirTipo('recoger')}
                       >
                         Recoger
                       </button>
                       <button
                         type="button"
                         className={tipo === 'domicilio' ? 'active' : ''}
-                        onClick={() => setTipo('domicilio')}
+                        onClick={() => elegirTipo('domicilio')}
                       >
                         Domicilio
                       </button>
+                      {mesa && (
+                        <button
+                          type="button"
+                          className={tipo === 'local' ? 'active' : ''}
+                          onClick={() => elegirTipo('local')}
+                        >
+                          Mesa {mesa.numero}
+                        </button>
+                      )}
                     </div>
 
                     {tipo === 'domicilio' && !isAuthenticated && (
@@ -189,11 +229,7 @@ export default function Cart() {
                       onClick={handleConfirmar}
                       disabled={status === 'sending' || !puedeConfirmar}
                     >
-                      {status === 'sending'
-                        ? 'Enviando...'
-                        : tipo === 'domicilio'
-                          ? 'Confirmar pedido a domicilio'
-                          : 'Confirmar pedido para recoger'}
+                      {status === 'sending' ? 'Enviando...' : etiquetaConfirmar}
                     </button>
                   </>
                 )}

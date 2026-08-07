@@ -1,5 +1,6 @@
 import Header from './components/Header'
 import QuickNav from './components/QuickNav'
+import MesaBanner from './components/MesaBanner'
 import ProductSection from './components/ProductSection'
 import DrinksSection from './components/DrinksSection'
 import AdicionesSection from './components/AdicionesSection'
@@ -9,6 +10,7 @@ import { drinks, adiciones, quickLinks } from './data/products'
 import { useCatalog } from './hooks/useCatalog'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
+import { MesaProvider } from './context/MesaContext'
 import './App.css'
 
 function App() {
@@ -16,27 +18,30 @@ function App() {
 
   return (
     <AuthProvider>
-      <CartProvider>
-        <div className="catalog">
-          <Header />
-          <QuickNav links={quickLinks} />
-          <main>
-            {loading && <p className="catalog-status">Cargando el menú…</p>}
-            {error && (
-              <p className="catalog-status catalog-status-error">
-                No se pudo cargar el menú desde el servidor. Verifica que el backend esté corriendo.
-              </p>
-            )}
-            {!loading &&
-              !error &&
-              products.map((product) => <ProductSection key={product.id} product={product} />)}
-            <DrinksSection drinks={drinks} />
-            <AdicionesSection adiciones={adiciones} />
-          </main>
-          <Footer />
-          <Cart />
-        </div>
-      </CartProvider>
+      <MesaProvider>
+        <CartProvider>
+          <div className="catalog">
+            <Header />
+            <QuickNav links={quickLinks} />
+            <MesaBanner />
+            <main>
+              {loading && <p className="catalog-status">Cargando el menú…</p>}
+              {error && (
+                <p className="catalog-status catalog-status-error">
+                  No se pudo cargar el menú desde el servidor. Verifica que el backend esté corriendo.
+                </p>
+              )}
+              {!loading &&
+                !error &&
+                products.map((product) => <ProductSection key={product.id} product={product} />)}
+              <DrinksSection drinks={drinks} />
+              <AdicionesSection adiciones={adiciones} />
+            </main>
+            <Footer />
+            <Cart />
+          </div>
+        </CartProvider>
+      </MesaProvider>
     </AuthProvider>
   )
 }

@@ -212,3 +212,15 @@ confirmar pedido → `POST /api/v1/pedidos` con `tipo=domicilio` y el JWT
 del cliente → verificado en Postgres: `pedido.cliente_id`, `canal=web`,
 `direccion_texto_snapshot`, `zona_domicilio_snapshot` y `total` ($60.000
 de productos + $5.000 de domicilio = $65.000) todos correctos.
+
+**Ronda 6 — pedido "local" desde el QR de la mesa**: base de datos
+recreada desde cero → Flyway aplica las 8 migraciones (incluidas las
+mesas placeholder con QR activo) → `GET /api/v1/mesas/qr/demo-mesa-1`
+verificado con curl (200 con la mesa correcta; código inválido → 404) →
+Playwright visitando `?mesa=demo-mesa-1`: banner "Pedido en mesa — Mesa 1"
+visible, la pestaña "Mesa 1" del carrito preseleccionada automáticamente,
+pedido confirmado sin login → verificado en Postgres: `tipo=local`,
+`canal=qr`, `mesa_id` correcto, `cliente_id` vacío, total correcto
+($62.000). Caso borde probado aparte: un código QR inválido en la URL no
+rompe el catálogo — no muestra el banner, no ofrece la pestaña "Mesa", y
+el resto del carrito (recoger/domicilio) sigue funcionando normal.

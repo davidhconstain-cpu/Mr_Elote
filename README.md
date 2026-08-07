@@ -5,7 +5,8 @@ Catálogo web (React + Vite), inspirado originalmente en el sitio de Canva
 fondo negro, tipografía bold, navegación rápida por categorías y precios por
 número de porciones. El menú ya no es texto estático: se carga en vivo desde
 el backend real (`backend/`, Spring Boot), permite armar un carrito, crear
-cuenta / iniciar sesión, y enviar el pedido para recoger o a domicilio.
+cuenta / iniciar sesión, y enviar el pedido para recoger, a domicilio o en
+mesa (escaneando el QR de la mesa).
 
 ## Desarrollo
 
@@ -35,11 +36,17 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   cliente, sesión (JWT) persistida en `localStorage`.
 - `src/api/clienteApi.js` + `src/api/zonasApi.js` + `src/components/AddressPicker.jsx`
   — direcciones del cliente autenticado y zonas de domicilio con su tarifa.
+- `src/context/MesaContext.jsx` + `src/api/mesasApi.js` — resuelve el QR de
+  la mesa desde `?mesa=<codigo>` en la URL (`GET /api/v1/mesas/qr/{codigo}`,
+  público), lo recuerda en `localStorage` y lo expone al resto del catálogo.
+- `src/components/MesaBanner.jsx` — aviso "Pedido en mesa — Mesa N" cuando
+  hay una mesa resuelta.
 - `src/api/pedidosApi.js` — envía el pedido armado a `POST /api/v1/pedidos`
-  (tipo `recoger`, anónimo, o `domicilio`, con el cliente autenticado y su
-  dirección).
+  (tipo `recoger` anónimo, `domicilio` con el cliente autenticado y su
+  dirección, o `local` con el código del QR de la mesa).
 - `src/components/Cart.jsx` — botón flotante + panel del carrito, selector
-  recoger/domicilio y confirmación del pedido.
+  recoger/domicilio/mesa (la pestaña "Mesa N" solo aparece si el QR se
+  resolvió) y confirmación del pedido.
 - `src/components/AuthModal.jsx` — modal de login/registro, disparado desde
   el `Header` o desde el carrito al elegir domicilio sin sesión.
 - `src/data/products.js` — navegación rápida, y bebidas/adiciones (todavía
@@ -62,4 +69,9 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   sembrada (`backend/.../V7__seed_zona_domicilio_placeholder.sql`,
   $5.000/30 min) para que el flujo sea funcional; reemplázala con las
   zonas y tarifas reales vía `POST /api/v1/zonas-domicilio`.
-- "local" (pedido en mesa vía QR) todavía no tiene interfaz en el catálogo.
+- Mesas reales de Mr. Elote — hoy solo hay 3 mesas placeholder sembradas
+  (`backend/.../V8__seed_mesas_qr_placeholder.sql`, códigos QR de ejemplo
+  `demo-mesa-1/2/3`) para que el flujo "local" sea probable; reemplázalas
+  con las mesas reales vía `POST /api/v1/mesas` (regenera el QR con
+  `POST /api/v1/mesas/{id}/qr/regenerar`) e imprime la URL
+  `https://<tu-dominio>/?mesa=<codigo>` como QR en cada mesa.

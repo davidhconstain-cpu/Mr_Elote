@@ -1,9 +1,9 @@
 import { API_BASE_URL } from './config'
 
-// tipo: 'recoger' (anónimo, sin login ni mesa QR) o 'domicilio' (requiere
-// cliente autenticado con una dirección propia — ver AddressPicker).
-// "local" (pedido en mesa vía QR) todavía no tiene interfaz en el catálogo.
-export async function crearPedido({ tipo, direccionId, items, observaciones, token }) {
+// tipo: 'recoger' (anónimo), 'domicilio' (requiere cliente autenticado con
+// una dirección propia — ver AddressPicker) o 'local' (requiere el código
+// del QR de la mesa escaneada — ver MesaContext).
+export async function crearPedido({ tipo, direccionId, mesaCodigoQr, items, observaciones, token }) {
   const headers = { 'Content-Type': 'application/json' }
   if (token) {
     headers.Authorization = `Bearer ${token}`
@@ -15,6 +15,7 @@ export async function crearPedido({ tipo, direccionId, items, observaciones, tok
     body: JSON.stringify({
       tipo,
       direccionId: tipo === 'domicilio' ? direccionId : undefined,
+      mesaCodigoQr: tipo === 'local' ? mesaCodigoQr : undefined,
       items: items.map((item) => ({ productoId: item.productoId, cantidad: item.cantidad })),
       observaciones: observaciones || null,
     }),

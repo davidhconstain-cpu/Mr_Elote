@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: pedidos-api
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+mrelote:
+  jwt:
+    secret: ${JWT_SECRET:cambiar-este-secreto-en-produccion-minimo-256-bits-xxxxxxxx}
+    access-token-minutes: 30
+    refresh-token-days: 7
+  domicilios:
+    activo-por-defecto: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mrelote
+    username: ${DB_USER:mrelote}
+    password: ${DB_PASSWORD:mrelote}
+logging:
+  level:
+    com.mrelote: DEBUG
+    org.hibernate.SQL: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mrelote_test
+    username: ${DB_USER:mrelote}
+    password: ${DB_PASSWORD:mrelote}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+logging:
+  level:
+    com.mrelote: INFO

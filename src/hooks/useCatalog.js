@@ -24,6 +24,7 @@ function groupProductos(productos) {
       groups.get(p.nombre).prices.push({
         people: p.porcionPersonas ?? 1,
         price: Number(p.precio),
+        productoId: p.id,
       })
     }
   }

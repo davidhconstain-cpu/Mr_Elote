@@ -15,7 +15,7 @@ function PersonIcon() {
   )
 }
 
-export default function PriceRow({ people, price }) {
+export default function PriceRow({ people, price, quantity = 0, onAdd }) {
   return (
     <div className="price-row">
       <span
@@ -27,6 +27,16 @@ export default function PriceRow({ people, price }) {
         ))}
       </span>
       <span className="price">{formatPrice(price)}</span>
+      {onAdd && (
+        <button
+          type="button"
+          className="add-button"
+          onClick={onAdd}
+          aria-label={`Agregar porción para ${people} persona${people > 1 ? 's' : ''} al carrito`}
+        >
+          {quantity > 0 ? quantity : '+'}
+        </button>
+      )}
     </div>
   )
 }

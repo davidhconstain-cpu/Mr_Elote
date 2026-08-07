@@ -122,6 +122,11 @@ Por defecto el frontend apunta a `http://localhost:8080/api/v1`
 CORS desde `http://localhost:5173` (`mrelote.cors.allowed-origins`, ver
 `application.yml`).
 
+El catálogo también arma pedidos reales: el carrito (`src/context/CartContext.jsx`
++ `src/components/Cart.jsx`) envía `POST /api/v1/pedidos` con `tipo: "recoger"`
+(anónimo, sin login ni QR de mesa) y muestra el número de pedido y el total
+de la respuesta real de la API.
+
 ## Qué queda pendiente (siguiente fase)
 
 - Envío real de notificaciones (job/listener asíncrono que tome las
@@ -188,3 +193,10 @@ colección `@OneToMany` LAZY; como `spring.jpa.open-in-view` está en
 `@Transactional(readOnly = true)` para evitar un
 `LazyInitializationException` fuera de la transacción — verificado
 directamente contra la API, no solo por inspección de código.
+
+**Ronda 4 — flujo de pedidos desde el catálogo**: backend + frontend
+corriendo juntos, automatizado con Playwright — agregar 2x Callejera y 1x
+Burrito al carrito desde la UI, abrir el panel, escribir observaciones,
+confirmar → `POST /api/v1/pedidos` real → pedido #1 creado con
+`tipo=recoger`, `total=$115.000` correcto, verificado tanto en la pantalla
+de confirmación como directamente en Postgres (`pedido` y `pedido_detalle`).

@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import { crearPedido } from '../api/pedidosApi'
 import { formatPrice } from '../utils/formatPrice'
+import AddressPicker from './AddressPicker'
 
 export default function Cart() {
   const { items, setQuantity, removeItem, clear, total, count } = useCart()
+  const { isAuthenticated, accessToken, openAuthModal } = useAuth()
   const [open, setOpen] = useState(false)
+  const [tipo, setTipo] = useState('recoger')
+  const [direccionId, setDireccionId] = useState(null)
   const [observaciones, setObservaciones] = useState('')
   const [status, setStatus] = useState('idle') // idle | sending | success | error
   const [error, setError] = useState(null)
@@ -15,15 +20,24 @@ export default function Cart() {
     return null
   }
 
+  const puedeConfirmar = tipo === 'recoger' || (tipo === 'domicilio' && isAuthenticated && direccionId != null)
+
   async function handleConfirmar() {
     setStatus('sending')
     setError(null)
     try {
-      const pedido = await crearPedido({ items, observaciones })
+      const pedido = await crearPedido({
+        tipo,
+        direccionId: tipo === 'domicilio' ? direccionId : undefined,
+        items,
+        observaciones,
+        token: accessToken,
+      })
       setConfirmedOrder(pedido)
       setStatus('success')
       clear()
       setObservaciones('')
+      setDireccionId(null)
     } catch (err) {
       setError(err.message)
       setStatus('error')
@@ -35,6 +49,7 @@ export default function Cart() {
     if (status === 'success') {
       setStatus('idle')
       setConfirmedOrder(null)
+      setTipo('recoger')
     }
   }
 
@@ -66,7 +81,11 @@ export default function Cart() {
                 <p className="cart-confirmation-detail">
                   Pedido #{confirmedOrder.id} — {formatPrice(confirmedOrder.total)}
                 </p>
-                <p className="cart-confirmation-note">Te avisamos cuando esté listo para recoger.</p>
+                <p className="cart-confirmation-note">
+                  {confirmedOrder.tipo === 'domicilio'
+                    ? 'Te avisamos cuando salga hacia tu dirección.'
+                    : 'Te avisamos cuando esté listo para recoger.'}
+                </p>
                 <button type="button" className="cart-confirm-button" onClick={handleCerrar}>
                   Cerrar
                 </button>
@@ -118,24 +137,63 @@ export default function Cart() {
 
                 {items.length > 0 && (
                   <>
+                    <div className="order-type-toggle">
+                      <button
+                        type="button"
+                        className={tipo === 'recoger' ? 'active' : ''}
+                        onClick={() => setTipo('recoger')}
+                      >
+                        Recoger
+                      </button>
+                      <button
+                        type="button"
+                        className={tipo === 'domicilio' ? 'active' : ''}
+                        onClick={() => setTipo('domicilio')}
+                      >
+                        Domicilio
+                      </button>
+                    </div>
+
+                    {tipo === 'domicilio' && !isAuthenticated && (
+                      <div className="cart-login-prompt">
+                        <p>Inicia sesión para pedir a domicilio.</p>
+                        <button type="button" className="cart-confirm-button" onClick={openAuthModal}>
+                          Iniciar sesión
+                        </button>
+                      </div>
+                    )}
+
+                    {tipo === 'domicilio' && isAuthenticated && (
+                      <AddressPicker value={direccionId} onChange={setDireccionId} />
+                    )}
+
                     <textarea
                       className="cart-observaciones"
                       placeholder="Observaciones (opcional): sin cebolla, para las 7pm, etc."
                       value={observaciones}
                       onChange={(e) => setObservaciones(e.target.value)}
                     />
+
                     <div className="cart-total">
                       <span>Total</span>
                       <span>{formatPrice(total)}</span>
                     </div>
+                    {tipo === 'domicilio' && (
+                      <p className="cart-domicilio-note">El costo de domicilio se agrega según tu zona.</p>
+                    )}
+
                     {status === 'error' && <p className="cart-error">{error}</p>}
                     <button
                       type="button"
                       className="cart-confirm-button"
                       onClick={handleConfirmar}
-                      disabled={status === 'sending'}
+                      disabled={status === 'sending' || !puedeConfirmar}
                     >
-                      {status === 'sending' ? 'Enviando...' : 'Confirmar pedido para recoger'}
+                      {status === 'sending'
+                        ? 'Enviando...'
+                        : tipo === 'domicilio'
+                          ? 'Confirmar pedido a domicilio'
+                          : 'Confirmar pedido para recoger'}
                     </button>
                   </>
                 )}

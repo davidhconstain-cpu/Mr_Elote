@@ -1,14 +1,20 @@
 import { API_BASE_URL } from './config'
 
-// MVP: solo pedidos "recoger" (anónimos, sin login ni mesa QR) — el
-// catálogo público todavía no tiene inicio de sesión de cliente para
-// ofrecer domicilio, ni lectura de QR de mesa para pedidos "local".
-export async function crearPedido({ items, observaciones }) {
+// tipo: 'recoger' (anónimo, sin login ni mesa QR) o 'domicilio' (requiere
+// cliente autenticado con una dirección propia — ver AddressPicker).
+// "local" (pedido en mesa vía QR) todavía no tiene interfaz en el catálogo.
+export async function crearPedido({ tipo, direccionId, items, observaciones, token }) {
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
   const response = await fetch(`${API_BASE_URL}/pedidos`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
-      tipo: 'recoger',
+      tipo,
+      direccionId: tipo === 'domicilio' ? direccionId : undefined,
       items: items.map((item) => ({ productoId: item.productoId, cantidad: item.cantidad })),
       observaciones: observaciones || null,
     }),

@@ -4,8 +4,8 @@ Catálogo web (React + Vite), inspirado originalmente en el sitio de Canva
 [catalogo-vivanta.my.canva.site/mr-elote](https://catalogo-vivanta.my.canva.site/mr-elote):
 fondo negro, tipografía bold, navegación rápida por categorías y precios por
 número de porciones. El menú ya no es texto estático: se carga en vivo desde
-el backend real (`backend/`, Spring Boot) y permite armar un carrito y enviar
-el pedido para recoger.
+el backend real (`backend/`, Spring Boot), permite armar un carrito, crear
+cuenta / iniciar sesión, y enviar el pedido para recoger o a domicilio.
 
 ## Desarrollo
 
@@ -31,10 +31,17 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   `GET /api/v1/productos` y agrupan las porciones de cada plato.
 - `src/context/CartContext.jsx` — estado del carrito (agregar, quitar,
   cambiar cantidad, total).
+- `src/context/AuthContext.jsx` + `src/api/authApi.js` — login/registro de
+  cliente, sesión (JWT) persistida en `localStorage`.
+- `src/api/clienteApi.js` + `src/api/zonasApi.js` + `src/components/AddressPicker.jsx`
+  — direcciones del cliente autenticado y zonas de domicilio con su tarifa.
 - `src/api/pedidosApi.js` — envía el pedido armado a `POST /api/v1/pedidos`
-  (tipo `recoger`, sin necesidad de login).
-- `src/components/Cart.jsx` — botón flotante + panel del carrito y
-  confirmación del pedido.
+  (tipo `recoger`, anónimo, o `domicilio`, con el cliente autenticado y su
+  dirección).
+- `src/components/Cart.jsx` — botón flotante + panel del carrito, selector
+  recoger/domicilio y confirmación del pedido.
+- `src/components/AuthModal.jsx` — modal de login/registro, disparado desde
+  el `Header` o desde el carrito al elegir domicilio sin sesión.
 - `src/data/products.js` — navegación rápida, y bebidas/adiciones (todavía
   estáticas, ver más abajo).
 - `src/components/` — Header, QuickNav, ProductSection, PriceRow,
@@ -51,6 +58,8 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   correspondiente vía `POST /api/v1/productos/{id}/imagenes`, o agrégalas
   directamente en `backend/src/main/resources/db/migration/V6__seed_menu_mrelote.sql`
   antes de la primera vez que se aplique la migración.
-- El flujo de pedidos solo cubre "recoger" (anónimo, sin login). Domicilio
-  requiere cliente autenticado y "local" requiere QR de mesa — ninguno de
-  los dos tiene todavía interfaz en el catálogo.
+- Zonas y tarifas de domicilio reales — hoy solo hay una zona placeholder
+  sembrada (`backend/.../V7__seed_zona_domicilio_placeholder.sql`,
+  $5.000/30 min) para que el flujo sea funcional; reemplázala con las
+  zonas y tarifas reales vía `POST /api/v1/zonas-domicilio`.
+- "local" (pedido en mesa vía QR) todavía no tiene interfaz en el catálogo.

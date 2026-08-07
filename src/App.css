@@ -37,6 +37,31 @@
   text-transform: uppercase;
 }
 
+.account-bar {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.account-name {
+  color: var(--gray);
+}
+
+.account-link {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  padding: 0;
+}
+
 /* Quick nav */
 .quick-nav {
   display: flex;
@@ -471,6 +496,206 @@ main {
 
 .cart-confirmation-note {
   color: var(--gray);
+  font-size: 13px;
+}
+
+.cart-status {
+  color: var(--gray);
+  font-size: 13px;
+}
+
+/* Order type toggle (recoger / domicilio) */
+.order-type-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.order-type-toggle button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #2a2a2a;
+  background: var(--bg);
+  color: var(--gray);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.order-type-toggle button.active {
+  border-color: var(--red);
+  color: var(--white);
+  background: rgba(224, 33, 43, 0.15);
+}
+
+.cart-login-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed #3a3a3a;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.cart-login-prompt p {
+  color: var(--gray);
+  font-size: 13px;
+}
+
+.cart-domicilio-note {
+  color: var(--gray);
+  font-size: 12px;
+  margin-top: -8px;
+}
+
+/* Address picker */
+.address-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.address-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.address-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--white);
+  cursor: pointer;
+}
+
+.address-option input {
+  margin-top: 3px;
+}
+
+.address-tarifa {
+  color: var(--red);
+  font-style: normal;
+  font-size: 12px;
+}
+
+.address-add-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.address-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.address-form input,
+.address-form select {
+  background: var(--bg);
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+
+.address-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.address-form-actions .cart-confirm-button {
+  flex: 1;
+}
+
+.address-cancel {
+  background: none;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: var(--gray);
+  padding: 0 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* Auth modal */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 20px;
+}
+
+.auth-modal {
+  width: min(360px, 100%);
+  background: var(--bg-alt);
+  border: 1px solid var(--red);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.auth-tabs button {
+  background: none;
+  border: none;
+  color: var(--gray);
+  font-family: var(--display);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 13px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.auth-tabs button.active {
+  color: var(--white);
+  border-bottom-color: var(--red);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-form input {
+  background: var(--bg);
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--white);
+  font-family: var(--sans);
   font-size: 13px;
 }
 

@@ -200,3 +200,15 @@ Burrito al carrito desde la UI, abrir el panel, escribir observaciones,
 confirmar → `POST /api/v1/pedidos` real → pedido #1 creado con
 `tipo=recoger`, `total=$115.000` correcto, verificado tanto en la pantalla
 de confirmación como directamente en Postgres (`pedido` y `pedido_detalle`).
+
+**Ronda 5 — login de cliente y pedidos a domicilio**: base de datos
+recreada desde cero → Flyway aplica las 7 migraciones (incluida la nueva
+zona de domicilio placeholder) → automatizado con Playwright: registro de
+cliente desde el modal → sesión persistida en `localStorage` (verificada
+con un reload real de la página) → login por separado con las mismas
+credenciales (no solo registro-y-auto-login) → agregar productos al
+carrito → elegir "Domicilio" → crear una dirección nueva con zona →
+confirmar pedido → `POST /api/v1/pedidos` con `tipo=domicilio` y el JWT
+del cliente → verificado en Postgres: `pedido.cliente_id`, `canal=web`,
+`direccion_texto_snapshot`, `zona_domicilio_snapshot` y `total` ($60.000
+de productos + $5.000 de domicilio = $65.000) todos correctos.

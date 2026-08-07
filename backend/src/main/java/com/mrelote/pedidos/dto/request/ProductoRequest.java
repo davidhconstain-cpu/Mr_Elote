@@ -12,6 +12,7 @@ public record ProductoRequest(
         @NotBlank String nombre,
         String descripcion,
         @NotNull @PositiveOrZero BigDecimal precio,
+        Integer porcionPersonas,
         Boolean disponible,
         Boolean activo) {
 }

@@ -24,6 +24,8 @@ mrelote:
     refresh-token-days: 7
   domicilios:
     activo-por-defecto: true
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
 ---
 spring:

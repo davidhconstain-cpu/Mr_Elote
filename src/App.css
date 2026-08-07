@@ -69,6 +69,17 @@ main {
   flex: 1;
 }
 
+.catalog-status {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--gray);
+  font-size: 15px;
+}
+
+.catalog-status-error {
+  color: var(--red);
+}
+
 /* Product sections */
 .product-section {
   padding: 40px 20px;

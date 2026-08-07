@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,7 +34,9 @@ public class ProductoController {
     private final AuditoriaService auditoriaService;
     private final ImagenProductoService imagenProductoService;
 
+    /** @Transactional: producto.imagenes es LAZY y open-in-view está deshabilitado (application.yml). */
     @GetMapping
+    @Transactional(readOnly = true)
     public Page<ProductoResponse> listar(
             @RequestParam(required = false) Long categoriaId,
             @RequestParam(required = false) Boolean disponible,
@@ -52,6 +55,7 @@ public class ProductoController {
     }
 
     @GetMapping("/{id}")
+    @Transactional(readOnly = true)
     public ProductoResponse ver(@PathVariable Long id) {
         return ProductoResponse.from(buscar(id));
     }
@@ -67,6 +71,7 @@ public class ProductoController {
                 .nombre(request.nombre())
                 .descripcion(request.descripcion())
                 .precio(request.precio())
+                .porcionPersonas(request.porcionPersonas())
                 .disponible(request.disponible() != null ? request.disponible() : true)
                 .activo(request.activo() != null ? request.activo() : true)
                 .build();
@@ -88,6 +93,7 @@ public class ProductoController {
         if (request.nombre() != null) producto.setNombre(request.nombre());
         if (request.descripcion() != null) producto.setDescripcion(request.descripcion());
         if (request.precio() != null) producto.setPrecio(request.precio());
+        if (request.porcionPersonas() != null) producto.setPorcionPersonas(request.porcionPersonas());
         if (request.activo() != null) producto.setActivo(request.activo());
         producto = productoRepository.save(producto);
         auditoriaService.registrar(auth, "editar", "producto", id, anterior, ProductoResponse.from(producto));

@@ -40,6 +40,10 @@ public class Producto {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal precio;
 
+    /** Para cuántas personas rinde esta porción (ver V5__add_porcion_personas.sql). */
+    @Column(name = "porcion_personas")
+    private Integer porcionPersonas;
+
     @Builder.Default
     private Boolean disponible = true;
 

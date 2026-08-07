@@ -89,6 +89,38 @@ FROM rol WHERE nombre = 'Administrador';
   de productos/combos más vendidos, resumen del día.
 - **Configuración**: parámetros generales (incluye
   `modulo_domicilios_activo`, RF-032).
+- **Catálogo React conectado**: el frontend (`../src`) ya consume
+  `GET /api/v1/productos` en vivo en vez de datos estáticos — ver
+  "Catálogo React" más abajo.
+
+## Catálogo React
+
+El catálogo (`../src/hooks/useCatalog.js`) reemplazó los datos estáticos de
+`../src/data/products.js` por una llamada real a `GET /api/v1/productos`.
+Cada porción de un plato (1/2/4/6 personas) es una fila de `producto`
+distinta con el mismo `nombre` y su propio `precio`/`porcion_personas`
+(columna agregada en `V5__add_porcion_personas.sql`); el hook las agrupa
+por `nombre` para reconstruir la vista de "un plato, varias porciones" del
+sitio original. El menú real de Mr. Elote (16 filas de producto, con las
+imágenes ya existentes en `../src/public/images`) se siembra en
+`V6__seed_menu_mrelote.sql`. Bebidas y adiciones siguen estáticas en el
+frontend porque sus precios reales aún no están confirmados.
+
+Para correr ambos juntos en desarrollo:
+
+```bash
+# backend (puerto 8080)
+export DB_USER=mrelote DB_PASSWORD=mrelote
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# frontend (puerto 5173) — en otra terminal, desde la raíz del repo
+npm run dev
+```
+
+Por defecto el frontend apunta a `http://localhost:8080/api/v1`
+(`VITE_API_BASE_URL`, ver `.env.example` en la raíz) y el backend permite
+CORS desde `http://localhost:5173` (`mrelote.cors.allowed-origins`, ver
+`application.yml`).
 
 ## Qué queda pendiente (siguiente fase)
 
@@ -142,3 +174,17 @@ que todo funcionaba):
 En ambas rondas, las únicas discrepancias no corregidas fueron artefactos
 de formato del script de prueba en Python (`4000.0` vs `4000`), no errores
 de la API.
+
+**Ronda 3 — integración con el catálogo React**: base de datos recreada
+desde cero → Flyway aplica las 6 migraciones (incluida la nueva
+`porcion_personas` y el seed del menú real) → `GET /api/v1/productos`
+verificado con curl (16 filas, agrupables por nombre, imágenes correctas)
+→ CORS verificado con `curl -H "Origin: http://localhost:5173"` (responde
+`Access-Control-Allow-Origin` correcto) → frontend (`npm run dev`)
+verificado con una captura de pantalla real renderizando los datos del
+backend. `ProductoResponse` ahora expone `producto.imagenes`, una
+colección `@OneToMany` LAZY; como `spring.jpa.open-in-view` está en
+`false`, se anotó `ProductoController#listar/ver` con
+`@Transactional(readOnly = true)` para evitar un
+`LazyInitializationException` fuera de la transacción — verificado
+directamente contra la API, no solo por inspección de código.

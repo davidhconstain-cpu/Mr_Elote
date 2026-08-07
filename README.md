@@ -49,6 +49,17 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   resolvió) y confirmación del pedido.
 - `src/components/AuthModal.jsx` — modal de login/registro, disparado desde
   el `Header` o desde el carrito al elegir domicilio sin sesión.
+- `src/hooks/useCombos.js` + `src/components/CombosSection.jsx` — combos
+  del backend (`GET /combos`), con su disponibilidad dinámica.
+- `src/components/ItemCustomizeModal.jsx` — al agregar un producto con
+  opciones (ej. tamaño) o adicionales (ej. queso extra), abre este modal
+  en vez de agregarlo directo; cada combinación es una línea distinta del
+  carrito.
+- `src/components/MisPedidosPanel.jsx` — historial de pedidos del cliente
+  autenticado, con detalle e historial de estados de cada uno.
+- `src/api/metodosPagoApi.js` + `src/api/pagosApi.js` — selector de método
+  de pago al confirmar (solo cliente autenticado; un pedido anónimo se
+  paga en persona).
 - `src/data/products.js` — navegación rápida, y bebidas/adiciones (todavía
   estáticas, ver más abajo).
 - `src/components/` — Header, QuickNav, ProductSection, PriceRow,
@@ -75,3 +86,7 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   con las mesas reales vía `POST /api/v1/mesas` (regenera el QR con
   `POST /api/v1/mesas/{id}/qr/regenerar`) e imprime la URL
   `https://<tu-dominio>/?mesa=<codigo>` como QR en cada mesa.
+- El combo y las opciones/adicionales de demo (Nachos con tamaño y
+  adicionales, "Combo Callejera + Chicharrón") son de ejemplo, no ofertas
+  reales confirmadas — ver `V9__seed_opciones_adicionales_demo.sql` y
+  `V10__seed_combo_demo.sql`.

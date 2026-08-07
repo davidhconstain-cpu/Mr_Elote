@@ -7,7 +7,8 @@ import java.math.BigDecimal;
 public record ProductoResponse(
         Long id, Long categoriaId, String codigo, String nombre, String descripcion,
         BigDecimal precio, Integer porcionPersonas, Boolean disponible, Boolean activo,
-        java.util.List<String> imagenes) {
+        java.util.List<String> imagenes, java.util.List<AdicionalResponse> adicionales,
+        Boolean tieneOpciones) {
 
     public static ProductoResponse from(Producto p) {
         return new ProductoResponse(
@@ -16,6 +17,11 @@ public record ProductoResponse(
                 p.getImagenes().stream()
                         .sorted(java.util.Comparator.comparing(com.mrelote.pedidos.entity.ImagenProducto::getOrden))
                         .map(com.mrelote.pedidos.entity.ImagenProducto::getUrl)
-                        .toList());
+                        .toList(),
+                p.getAdicionales().stream()
+                        .filter(a -> Boolean.TRUE.equals(a.getDisponible()))
+                        .map(AdicionalResponse::from)
+                        .toList(),
+                !p.getProductoOpciones().isEmpty());
     }
 }

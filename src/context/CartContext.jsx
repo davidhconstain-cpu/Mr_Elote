@@ -2,37 +2,41 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 
 const CartContext = createContext(null)
 
-// Item: { productoId, nombre, porcion, price, cantidad }
+// Item: { key, tipo: 'producto'|'combo', productoId?, comboId?, nombre,
+// porcion?, opciones?: [{valorOpcionId,nombre,precioAdicional}],
+// adicionales?: [{adicionalId,nombre,precio}], price, cantidad }
+//
+// `key` identifica la línea del carrito: dos veces el mismo producto con
+// distintas opciones/adicionales son líneas separadas, por eso no basta con
+// productoId/comboId como antes.
 export function CartProvider({ children }) {
   const [items, setItems] = useState([])
 
-  const addItem = useCallback((product) => {
+  const addItem = useCallback((item) => {
     setItems((prev) => {
-      const existing = prev.find((item) => item.productoId === product.productoId)
+      const existing = prev.find((i) => i.key === item.key)
       if (existing) {
-        return prev.map((item) =>
-          item.productoId === product.productoId ? { ...item, cantidad: item.cantidad + 1 } : item,
-        )
+        return prev.map((i) => (i.key === item.key ? { ...i, cantidad: i.cantidad + 1 } : i))
       }
-      return [...prev, { ...product, cantidad: 1 }]
+      return [...prev, { ...item, cantidad: 1 }]
     })
   }, [])
 
-  const removeItem = useCallback((productoId) => {
-    setItems((prev) => prev.filter((item) => item.productoId !== productoId))
+  const removeItem = useCallback((key) => {
+    setItems((prev) => prev.filter((i) => i.key !== key))
   }, [])
 
-  const setQuantity = useCallback((productoId, cantidad) => {
+  const setQuantity = useCallback((key, cantidad) => {
     setItems((prev) => {
-      if (cantidad <= 0) return prev.filter((item) => item.productoId !== productoId)
-      return prev.map((item) => (item.productoId === productoId ? { ...item, cantidad } : item))
+      if (cantidad <= 0) return prev.filter((i) => i.key !== key)
+      return prev.map((i) => (i.key === key ? { ...i, cantidad } : i))
     })
   }, [])
 
   const clear = useCallback(() => setItems([]), [])
 
   const quantityOf = useCallback(
-    (productoId) => items.find((item) => item.productoId === productoId)?.cantidad ?? 0,
+    (key) => items.find((i) => i.key === key)?.cantidad ?? 0,
     [items],
   )
 

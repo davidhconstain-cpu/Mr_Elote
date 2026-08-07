@@ -70,6 +70,10 @@ public class Producto {
     @Builder.Default
     private Set<Adicional> adicionales = new HashSet<>();
 
+    @OneToMany(mappedBy = "producto")
+    @Builder.Default
+    private Set<ProductoOpcion> productoOpciones = new HashSet<>();
+
     @PreUpdate
     void onUpdate() {
         this.actualizadoEn = OffsetDateTime.now();

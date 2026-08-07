@@ -57,7 +57,9 @@ FROM rol WHERE nombre = 'Administrador';
   local, servidas en `/uploads/**`), y combos con **disponibilidad
   calculada dinámicamente** contra la vista SQL `combo_disponibilidad` (un
   componente obligatorio agotado agota el combo; una alternativa agotada
-  dentro de un grupo, no).
+  dentro de un grupo, no). `GET /productos/{id}/opciones` +
+  `POST/DELETE /productos/{id}/opciones|adicionales` (admin) exponen y
+  asignan qué opciones/adicionales aplican a cada producto.
 - **Mesas y QR**: regeneración de QR sin perder el histórico.
 - **Pedidos**: creación con snapshot de precios (incluye opciones y
   adicionales), cálculo de domicilio por tarifa vigente, modificación de
@@ -122,10 +124,17 @@ Por defecto el frontend apunta a `http://localhost:8080/api/v1`
 CORS desde `http://localhost:5173` (`mrelote.cors.allowed-origins`, ver
 `application.yml`).
 
-El catálogo también arma pedidos reales: el carrito (`src/context/CartContext.jsx`
-+ `src/components/Cart.jsx`) envía `POST /api/v1/pedidos` con `tipo: "recoger"`
-(anónimo, sin login ni QR de mesa) y muestra el número de pedido y el total
-de la respuesta real de la API.
+El catálogo también arma pedidos reales, en cualquiera de los tres tipos
+(recoger anónimo, domicilio con cliente autenticado, local vía QR de
+mesa) — ver el commit "Agregar carrito...", "...login de cliente..." y
+"...flujo de pedido local...". Desde la última ronda además: combos
+(`CombosSection`, RF-027), personalizar un ítem con opciones/adicionales
+antes de agregarlo al carrito (`ItemCustomizeModal`, cada combinación es
+una línea distinta del carrito), historial de pedidos del cliente
+(`MisPedidosPanel`, con el detalle y el historial de estados de cada
+uno), y elegir método de pago al confirmar — solo para cliente
+autenticado, ya que `POST /pedidos/{id}/pagos` solo lo permite a
+Cliente/Mesero/Caja; un pedido anónimo se paga en persona.
 
 ## Qué queda pendiente (siguiente fase)
 
@@ -224,3 +233,22 @@ pedido confirmado sin login → verificado en Postgres: `tipo=local`,
 ($62.000). Caso borde probado aparte: un código QR inválido en la URL no
 rompe el catálogo — no muestra el banner, no ofrece la pestaña "Mesa", y
 el resto del carrito (recoger/domicilio) sigue funcionando normal.
+
+**Ronda 7 — combos, personalización de ítems, mis pedidos y pago**: base
+de datos recreada desde cero → Flyway aplica las 10 migraciones (incluidos
+un combo, una opción con dos valores y dos adicionales de demo) →
+Playwright: registro → personalizar Nachos (opción "Tamaño: Grande" +
+adicional "Queso extra") desde el nuevo modal → agregar el combo →
+elegir método de pago "Efectivo" → confirmar pedido para recoger →
+abrir "Mis pedidos" y expandir el detalle. Verificado en Postgres: el
+pedido, sus dos líneas (`pedido_detalle`), la opción elegida
+(`pedido_detalle_opcion`), el adicional elegido
+(`pedido_detalle_adicional`) y el pago (`pago`, método Efectivo, monto
+$100.000) — todos correctos y consistentes con el total mostrado en
+pantalla. Esta ronda encontró y corrigió un bug real preexistente:
+`GET /clientes/me/pedidos` (`ClienteController#misPedidos`) nunca tuvo
+`@Transactional`, así que mapear `pedido.items` (colección LAZY) fallaba
+con `LazyInitializationException` — nunca se había probado esta ruta con
+una petición HTTP real hasta esta ronda. Corregido con
+`@Transactional(readOnly = true)`, igual que los demás casos ya conocidos
+de este mismo patrón.

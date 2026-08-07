@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,7 +50,9 @@ public class ClienteController {
         return ResponseEntity.noContent().build();
     }
 
+    /** @Transactional: pedido.items es LAZY y open-in-view está deshabilitado (application.yml). */
     @GetMapping("/pedidos")
+    @Transactional(readOnly = true)
     public Page<PedidoResponse> misPedidos(Authentication auth, Pageable pageable) {
         return pedidoRepository.findByClienteUsuarioIdOrderByCreadoEnDesc(id(auth), pageable).map(PedidoResponse::from);
     }

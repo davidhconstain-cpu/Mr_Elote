@@ -2,6 +2,7 @@ import Header from './components/Header'
 import QuickNav from './components/QuickNav'
 import MesaBanner from './components/MesaBanner'
 import ProductSection from './components/ProductSection'
+import CombosSection from './components/CombosSection'
 import DrinksSection from './components/DrinksSection'
 import AdicionesSection from './components/AdicionesSection'
 import Footer from './components/Footer'
@@ -34,6 +35,7 @@ function App() {
               {!loading &&
                 !error &&
                 products.map((product) => <ProductSection key={product.id} product={product} />)}
+              <CombosSection />
               <DrinksSection drinks={drinks} />
               <AdicionesSection adiciones={adiciones} />
             </main>

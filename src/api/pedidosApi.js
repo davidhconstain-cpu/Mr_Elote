@@ -16,7 +16,13 @@ export async function crearPedido({ tipo, direccionId, mesaCodigoQr, items, obse
       tipo,
       direccionId: tipo === 'domicilio' ? direccionId : undefined,
       mesaCodigoQr: tipo === 'local' ? mesaCodigoQr : undefined,
-      items: items.map((item) => ({ productoId: item.productoId, cantidad: item.cantidad })),
+      items: items.map((item) => ({
+        productoId: item.tipo === 'combo' ? undefined : item.productoId,
+        comboId: item.tipo === 'combo' ? item.comboId : undefined,
+        cantidad: item.cantidad,
+        valoresOpcionId: item.opciones?.map((o) => o.valorOpcionId),
+        adicionalesId: item.adicionales?.map((a) => a.adicionalId),
+      })),
       observaciones: observaciones || null,
     }),
   })

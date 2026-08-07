@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import MisPedidosPanel from './MisPedidosPanel'
 
 export default function Header() {
   const { usuario, isAuthenticated, logout, openAuthModal } = useAuth()
+  const [misPedidosOpen, setMisPedidosOpen] = useState(false)
 
   return (
     <header className="site-header">
@@ -14,6 +17,9 @@ export default function Header() {
         {isAuthenticated ? (
           <>
             <span className="account-name">Hola, {usuario.nombre}</span>
+            <button type="button" className="account-link" onClick={() => setMisPedidosOpen(true)}>
+              Mis pedidos
+            </button>
             <button type="button" className="account-link" onClick={logout}>
               Salir
             </button>
@@ -24,6 +30,8 @@ export default function Header() {
           </button>
         )}
       </div>
+
+      {misPedidosOpen && <MisPedidosPanel onClose={() => setMisPedidosOpen(false)} />}
     </header>
   )
 }

@@ -23,3 +23,17 @@ export function crearDireccion(token, direccion) {
     body: JSON.stringify(direccion),
   }).then(handle)
 }
+
+export function misPedidos(token, page = 0) {
+  return fetch(`${API_BASE_URL}/clientes/me/pedidos?page=${page}&size=10`, {
+    headers: authHeaders(token),
+  }).then(handle)
+}
+
+export function verPedido(token, id) {
+  return fetch(`${API_BASE_URL}/pedidos/${id}`, { headers: authHeaders(token) }).then(handle)
+}
+
+export function historialPedido(token, id) {
+  return fetch(`${API_BASE_URL}/pedidos/${id}/historial`, { headers: authHeaders(token) }).then(handle)
+}

@@ -713,6 +713,234 @@ main {
   font-size: 13px;
 }
 
+/* Combos */
+.combos-section {
+  padding-bottom: 32px;
+}
+
+.combos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px auto 0;
+  padding: 0 24px;
+  max-width: 360px;
+}
+
+.combo-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+}
+
+.combo-card.agotado {
+  opacity: 0.5;
+}
+
+.combo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.combo-name {
+  color: var(--white);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.combo-description {
+  color: var(--gray);
+  font-size: 12px;
+}
+
+.combo-componentes {
+  color: var(--gray);
+  font-size: 11px;
+  font-style: italic;
+}
+
+.combo-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.combo-agotado-badge {
+  color: var(--gray);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid #3a3a3a;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+/* Item customize modal (reutiliza .auth-overlay/.auth-modal) */
+.customize-title {
+  font-family: var(--display);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--white);
+  font-size: 18px;
+}
+
+.customize-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customize-group {
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.customize-group legend {
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+.customize-required {
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.customize-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--white);
+  cursor: pointer;
+}
+
+.customize-option em {
+  color: var(--gray);
+  font-style: normal;
+  font-size: 12px;
+}
+
+/* Payment method picker */
+.cart-payment-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--gray);
+}
+
+.cart-payment-picker select {
+  background: var(--bg);
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+
+/* Mis pedidos */
+.mis-pedidos-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mis-pedidos-item {
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mis-pedidos-summary {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mis-pedidos-summary-info,
+.mis-pedidos-summary-right {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mis-pedidos-summary-right {
+  align-items: flex-end;
+}
+
+.mis-pedidos-id {
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.mis-pedidos-fecha {
+  color: var(--gray);
+  font-size: 11px;
+}
+
+.estado-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+
+.mis-pedidos-detalle {
+  padding: 0 12px 12px;
+  border-top: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mis-pedidos-detalle-items,
+.mis-pedidos-historial {
+  list-style: none;
+  color: var(--gray);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 8px;
+}
+
+.mis-pedidos-observaciones {
+  color: var(--gray);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.mis-pedidos-detalle-title {
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
 /* Footer */
 .site-footer {
   text-align: center;

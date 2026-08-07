@@ -25,6 +25,8 @@ function groupProductos(productos) {
         people: p.porcionPersonas ?? 1,
         price: Number(p.precio),
         productoId: p.id,
+        tieneOpciones: Boolean(p.tieneOpciones),
+        adicionales: p.adicionales ?? [],
       })
     }
   }

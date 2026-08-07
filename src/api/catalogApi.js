@@ -8,3 +8,11 @@ export async function fetchProductos() {
   const page = await response.json()
   return page.content ?? []
 }
+
+export async function fetchOpcionesDeProducto(productoId) {
+  const response = await fetch(`${API_BASE_URL}/productos/${productoId}/opciones`)
+  if (!response.ok) {
+    throw new Error(`${response.status}`)
+  }
+  return response.json()
+}

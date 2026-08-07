@@ -3,8 +3,18 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useMesa } from '../context/MesaContext'
 import { crearPedido } from '../api/pedidosApi'
+import { registrarPago } from '../api/pagosApi'
+import { fetchMetodosPago } from '../api/metodosPagoApi'
 import { formatPrice } from '../utils/formatPrice'
 import AddressPicker from './AddressPicker'
+
+function detalleItem(item) {
+  const partes = []
+  if (item.porcion) partes.push(`${item.porcion} persona${item.porcion > 1 ? 's' : ''}`)
+  for (const o of item.opciones ?? []) partes.push(o.nombre)
+  for (const a of item.adicionales ?? []) partes.push(`+ ${a.nombre}`)
+  return partes.join(' · ')
+}
 
 export default function Cart() {
   const { items, setQuantity, removeItem, clear, total, count } = useCart()
@@ -15,18 +25,31 @@ export default function Cart() {
   const [tipoTouched, setTipoTouched] = useState(false)
   const [direccionId, setDireccionId] = useState(null)
   const [observaciones, setObservaciones] = useState('')
+  const [metodos, setMetodos] = useState([])
+  const [metodoPagoId, setMetodoPagoId] = useState('')
   const [status, setStatus] = useState('idle') // idle | sending | success | error
   const [error, setError] = useState(null)
   const [confirmedOrder, setConfirmedOrder] = useState(null)
+  const [pagoAviso, setPagoAviso] = useState(null)
 
-  // Si el cliente escaneó el QR de una mesa, ese es el tipo de pedido más
-  // probable — pero solo lo preseleccionamos mientras no haya tocado el
-  // selector él mismo.
   useEffect(() => {
     if (!mesaLoading && mesa && !tipoTouched) {
       setTipo('local')
     }
   }, [mesaLoading, mesa, tipoTouched])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    let cancelled = false
+    fetchMetodosPago()
+      .then((data) => {
+        if (!cancelled) setMetodos(data)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated])
 
   if (count === 0 && status !== 'success') {
     return null
@@ -45,6 +68,7 @@ export default function Cart() {
   async function handleConfirmar() {
     setStatus('sending')
     setError(null)
+    setPagoAviso(null)
     try {
       const pedido = await crearPedido({
         tipo,
@@ -54,11 +78,21 @@ export default function Cart() {
         observaciones,
         token: accessToken,
       })
+
+      if (isAuthenticated && metodoPagoId) {
+        try {
+          await registrarPago(accessToken, pedido.id, { metodoPagoId: Number(metodoPagoId), monto: pedido.total })
+        } catch (pagoErr) {
+          setPagoAviso(`El pedido se creó, pero el pago no quedó registrado: ${pagoErr.message}`)
+        }
+      }
+
       setConfirmedOrder(pedido)
       setStatus('success')
       clear()
       setObservaciones('')
       setDireccionId(null)
+      setMetodoPagoId('')
     } catch (err) {
       setError(err.message)
       setStatus('error')
@@ -70,6 +104,7 @@ export default function Cart() {
     if (status === 'success') {
       setStatus('idle')
       setConfirmedOrder(null)
+      setPagoAviso(null)
       setTipo(mesa ? 'local' : 'recoger')
       setTipoTouched(false)
     }
@@ -117,6 +152,7 @@ export default function Cart() {
                       ? 'Ya va para tu mesa, en un momento te lo llevamos.'
                       : 'Te avisamos cuando esté listo para recoger.'}
                 </p>
+                {pagoAviso && <p className="cart-error">{pagoAviso}</p>}
                 <button type="button" className="cart-confirm-button" onClick={handleCerrar}>
                   Cerrar
                 </button>
@@ -128,17 +164,15 @@ export default function Cart() {
                 ) : (
                   <ul className="cart-items">
                     {items.map((item) => (
-                      <li key={item.productoId} className="cart-item">
+                      <li key={item.key} className="cart-item">
                         <div className="cart-item-info">
                           <span className="cart-item-name">{item.nombre}</span>
-                          <span className="cart-item-porcion">
-                            {item.porcion} persona{item.porcion > 1 ? 's' : ''}
-                          </span>
+                          {detalleItem(item) && <span className="cart-item-porcion">{detalleItem(item)}</span>}
                         </div>
                         <div className="cart-item-controls">
                           <button
                             type="button"
-                            onClick={() => setQuantity(item.productoId, item.cantidad - 1)}
+                            onClick={() => setQuantity(item.key, item.cantidad - 1)}
                             aria-label={`Quitar una unidad de ${item.nombre}`}
                           >
                             −
@@ -146,7 +180,7 @@ export default function Cart() {
                           <span className="cart-item-qty">{item.cantidad}</span>
                           <button
                             type="button"
-                            onClick={() => setQuantity(item.productoId, item.cantidad + 1)}
+                            onClick={() => setQuantity(item.key, item.cantidad + 1)}
                             aria-label={`Agregar una unidad de ${item.nombre}`}
                           >
                             +
@@ -156,7 +190,7 @@ export default function Cart() {
                         <button
                           type="button"
                           className="cart-item-remove"
-                          onClick={() => removeItem(item.productoId)}
+                          onClick={() => removeItem(item.key)}
                           aria-label={`Quitar ${item.nombre} del carrito`}
                         >
                           🗑
@@ -205,6 +239,20 @@ export default function Cart() {
 
                     {tipo === 'domicilio' && isAuthenticated && (
                       <AddressPicker value={direccionId} onChange={setDireccionId} />
+                    )}
+
+                    {isAuthenticated && metodos.length > 0 && (
+                      <label className="cart-payment-picker">
+                        <span>Método de pago</span>
+                        <select value={metodoPagoId} onChange={(e) => setMetodoPagoId(e.target.value)}>
+                          <option value="">Pagar en persona</option>
+                          {metodos.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     )}
 
                     <textarea

@@ -1,0 +1,3070 @@
+openapi: 3.0.3
+info:
+  title: Mr. Elote — API de Pedidos
+  version: 1.0.0
+  description: 'API REST del sistema de pedidos de Mr. Elote. Basada en la Especificación de Requisitos
+    del Producto v1.1 y en database/schema.sql. Convenciones: JSON en camelCase, autenticación JWT Bearer
+    salvo donde se indica explícitamente como público, paginación con page/size/sort, y errores con el
+    esquema Error.'
+  contact:
+    name: Mr. Elote
+servers:
+- url: /api/v1
+  description: Prefijo de todas las rutas
+security:
+- bearerAuth: []
+tags:
+- name: Auth
+  description: Registro, login y sesión
+- name: Usuarios
+  description: Usuarios, roles y permisos (RBAC)
+- name: Clientes
+  description: Perfil, direcciones e historial del cliente
+- name: Mesas
+  description: Mesas y códigos QR
+- name: Catálogo
+  description: Categorías, productos, opciones, adicionales y combos
+- name: Pedidos
+  description: Ciclo de vida del pedido
+- name: Cocina
+  description: Cola de preparación
+- name: Pagos
+  description: Pagos, webhooks de pasarela y validación manual
+- name: Caja
+  description: Apertura, movimientos y cierre de caja
+- name: Domicilios
+  description: Zonas y tarifas de domicilio
+- name: Despachos
+  description: Asignación y entrega de domicilios
+- name: Notificaciones
+  description: Avisos al cliente sobre su pedido
+- name: Informes
+  description: Dashboard y reportes
+- name: Auditoría
+  description: Bitácora general del sistema
+- name: Configuración
+  description: Parámetros generales del negocio
+paths:
+  /auth/registro:
+    post:
+      summary: Registrar cliente
+      tags:
+      - Auth
+      description: 'RF-002: registro de clientes para pedir fuera del local.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: registrarCliente
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistroClienteRequest'
+      responses:
+        '201':
+          description: Cliente creado y autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '422': &id001
+          description: Error de validación o regla de negocio (ej. producto agotado, pago no requerido
+            validado)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /auth/login:
+    post:
+      summary: Iniciar sesión
+      tags:
+      - Auth
+      description: 'RF-003.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /auth/recuperar:
+    post:
+      summary: Recuperar acceso
+      tags:
+      - Auth
+      description: 'RF-003: envía enlace de recuperación al email.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: recuperarAcceso
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        description: Solo se usa el campo email
+      responses:
+        '202':
+          description: Solicitud aceptada (se envía correo si el email existe)
+      security: []
+  /auth/refresh:
+    post:
+      summary: Renovar token
+      tags:
+      - Auth
+      description: '
+
+
+        Roles autorizados: Cualquier usuario autenticado.'
+      operationId: refrescarToken
+      responses:
+        '200':
+          description: Nuevo access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /usuarios/me:
+    get:
+      summary: Ver mi perfil
+      tags:
+      - Usuarios
+      description: '
+
+
+        Roles autorizados: Cualquier usuario autenticado.'
+      operationId: verMiPerfil
+      responses:
+        '200':
+          description: Perfil del usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+    patch:
+      summary: Editar mi perfil
+      tags:
+      - Usuarios
+      description: '
+
+
+        Roles autorizados: Cualquier usuario autenticado.'
+      operationId: editarMiPerfil
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usuario'
+      responses:
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+  /usuarios:
+    get:
+      summary: Listar usuarios
+      tags:
+      - Usuarios
+      description: 'RF-038.
+
+
+        Roles autorizados: Administrador.'
+      operationId: listarUsuarios
+      parameters:
+      - &id003
+        name: page
+        in: query
+        required: false
+        description: Número de página (0-indexado)
+        schema:
+          type: integer
+          default: 0
+      - &id004
+        name: size
+        in: query
+        required: false
+        description: Tamaño de página
+        schema:
+          type: integer
+          default: 20
+      - &id005
+        name: sort
+        in: query
+        required: false
+        description: Campo y dirección de orden, ej. creadoEn,desc
+        schema:
+          type: string
+      - name: rolId
+        in: query
+        required: false
+        description: Filtrar por rol
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Listado paginado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaUsuario'
+    post:
+      summary: Crear usuario de staff
+      tags:
+      - Usuarios
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearUsuario
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usuario'
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '422': *id001
+  /usuarios/{id}:
+    get:
+      summary: Ver usuario
+      tags:
+      - Usuarios
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: verUsuario
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del usuario
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '404': &id002
+          description: Recurso no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Editar usuario
+      tags:
+      - Usuarios
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: editarUsuario
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del usuario
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usuario'
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '404': *id002
+    delete:
+      summary: Desactivar usuario
+      tags:
+      - Usuarios
+      description: 'Baja lógica (activo=false); nunca se borra físicamente, ver auditoría.
+
+
+        Roles autorizados: Administrador.'
+      operationId: desactivarUsuario
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del usuario
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '204':
+          description: Usuario desactivado
+        '404': *id002
+  /roles:
+    get:
+      summary: Listar roles
+      tags:
+      - Usuarios
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: listarRoles
+      responses:
+        '200':
+          description: Roles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rol'
+  /roles/{id}/permisos:
+    put:
+      summary: Asignar permisos a un rol
+      tags:
+      - Usuarios
+      description: 'RF-038, RNF-004.
+
+
+        Roles autorizados: Administrador.'
+      operationId: asignarPermisosRol
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del rol
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Permiso'
+        description: Lista de IDs de permiso
+      responses:
+        '200':
+          description: Permisos actualizados
+  /clientes/me/direcciones:
+    get:
+      summary: Listar mis direcciones
+      tags:
+      - Clientes
+      description: '
+
+
+        Roles autorizados: Cliente.'
+      operationId: listarMisDirecciones
+      responses:
+        '200':
+          description: Direcciones del cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Direccion'
+    post:
+      summary: Agregar dirección
+      tags:
+      - Clientes
+      description: '
+
+
+        Roles autorizados: Cliente.'
+      operationId: crearDireccion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Direccion'
+      responses:
+        '201':
+          description: Dirección creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Direccion'
+  /clientes/me/direcciones/{id}:
+    patch:
+      summary: Editar dirección
+      tags:
+      - Clientes
+      description: '
+
+
+        Roles autorizados: Cliente.'
+      operationId: editarDireccion
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID de la dirección
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Direccion'
+      responses:
+        '200':
+          description: Dirección actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Direccion'
+        '404': *id002
+    delete:
+      summary: Eliminar dirección
+      tags:
+      - Clientes
+      description: '
+
+
+        Roles autorizados: Cliente.'
+      operationId: eliminarDireccion
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID de la dirección
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '204':
+          description: Eliminada
+        '404': *id002
+  /clientes/me/pedidos:
+    get:
+      summary: Mi historial de pedidos
+      tags:
+      - Clientes
+      description: 'RF-040.
+
+
+        Roles autorizados: Cliente.'
+      operationId: misPedidos
+      parameters: &id006
+      - *id003
+      - *id004
+      - *id005
+      responses:
+        '200':
+          description: Historial paginado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaPedido'
+  /mesas:
+    get:
+      summary: Listar mesas
+      tags:
+      - Mesas
+      description: 'RF-024.
+
+
+        Roles autorizados: Mesero, Administrador.'
+      operationId: listarMesas
+      responses:
+        '200':
+          description: Mesas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mesa'
+    post:
+      summary: Crear mesa
+      tags:
+      - Mesas
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearMesa
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Mesa'
+      responses:
+        '201':
+          description: Mesa creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mesa'
+  /mesas/{id}:
+    patch:
+      summary: Editar mesa
+      tags:
+      - Mesas
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: editarMesa
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID de la mesa
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Mesa'
+      responses:
+        '200':
+          description: Mesa actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mesa'
+        '404': *id002
+  /mesas/{id}/qr/regenerar:
+    post:
+      summary: Regenerar QR de la mesa
+      tags:
+      - Mesas
+      description: 'Sección 17: desactiva el QR anterior e inserta uno nuevo, sin perder trazabilidad.
+
+
+        Roles autorizados: Administrador.'
+      operationId: regenerarQrMesa
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID de la mesa
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '201':
+          description: Nuevo QR activo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrMesa'
+  /mesas/qr/{codigo}:
+    get:
+      summary: Resolver QR de mesa
+      tags:
+      - Mesas
+      description: 'RF-004: identifica la mesa a partir del código escaneado, sin login.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: resolverQrMesa
+      parameters:
+      - name: codigo
+        in: path
+        required: true
+        description: Código del QR
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Mesa asociada al QR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mesa'
+        '404': *id002
+      security: []
+  /categorias:
+    get:
+      summary: Listar categorías
+      tags:
+      - Catálogo
+      description: 'RF-001: visible sin autenticación.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: listarCategorias
+      responses:
+        '200':
+          description: Categorías
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Categoria'
+      security: []
+    post:
+      summary: Crear categoría
+      tags:
+      - Catálogo
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearCategoria
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Categoria'
+      responses:
+        '201':
+          description: Categoría creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Categoria'
+  /productos:
+    get:
+      summary: Listar productos
+      tags:
+      - Catálogo
+      description: 'RF-001, RF-028: incluye agotados con disponible=false.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: listarProductos
+      parameters:
+      - *id003
+      - *id004
+      - *id005
+      - name: categoriaId
+        in: query
+        required: false
+        description: Filtrar por categoría
+        schema:
+          type: integer
+      - name: disponible
+        in: query
+        required: false
+        description: Filtrar por disponibilidad
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Productos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaProducto'
+      security: []
+    post:
+      summary: Crear producto
+      tags:
+      - Catálogo
+      description: 'RF-025.
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearProducto
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Producto'
+      responses:
+        '201':
+          description: Producto creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '422': *id001
+  /productos/{id}:
+    get:
+      summary: Ver producto
+      tags:
+      - Catálogo
+      description: '
+
+
+        Endpoint público, sin autenticación.'
+      operationId: verProducto
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del producto
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '404': *id002
+      security: []
+    patch:
+      summary: Editar producto
+      tags:
+      - Catálogo
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: editarProducto
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del producto
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Producto'
+      responses:
+        '200':
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '404': *id002
+  /productos/{id}/disponibilidad:
+    patch:
+      summary: Marcar disponible/agotado
+      tags:
+      - Catálogo
+      description: 'RF-028, RF-029, RN-004: acción operativa frecuente, separada de editar todo el producto.
+
+
+        Roles autorizados: Administrador, Cocina.'
+      operationId: cambiarDisponibilidadProducto
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del producto
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Producto'
+        description: Solo se usa el campo disponible
+      responses:
+        '200':
+          description: Disponibilidad actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '404': *id002
+  /productos/{id}/imagenes:
+    post:
+      summary: Agregar imagen de producto
+      tags:
+      - Catálogo
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: agregarImagenProducto
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del producto
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                archivo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Imagen agregada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImagenProducto'
+  /adicionales:
+    get:
+      summary: Listar adicionales
+      tags:
+      - Catálogo
+      description: 'RF-026.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: listarAdicionales
+      responses:
+        '200':
+          description: Adicionales
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Adicional'
+      security: []
+    post:
+      summary: Crear adicional
+      tags:
+      - Catálogo
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearAdicional
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Adicional'
+      responses:
+        '201':
+          description: Adicional creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Adicional'
+  /opciones:
+    get:
+      summary: Listar opciones
+      tags:
+      - Catálogo
+      description: 'RF-026.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: listarOpciones
+      responses:
+        '200':
+          description: Opciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opcion'
+      security: []
+    post:
+      summary: Crear opción
+      tags:
+      - Catálogo
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearOpcion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Opcion'
+      responses:
+        '201':
+          description: Opción creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opcion'
+  /combos:
+    get:
+      summary: Listar combos
+      tags:
+      - Catálogo
+      description: 'RF-027. disponible se calcula por grupo de componentes (ver combo_disponibilidad).
+
+
+        Endpoint público, sin autenticación.'
+      operationId: listarCombos
+      parameters: *id006
+      responses:
+        '200':
+          description: Combos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaCombo'
+      security: []
+    post:
+      summary: Crear combo
+      tags:
+      - Catálogo
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearCombo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Combo'
+      responses:
+        '201':
+          description: Combo creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Combo'
+        '422': *id001
+  /combos/{id}/componentes:
+    put:
+      summary: Definir componentes del combo
+      tags:
+      - Catálogo
+      description: 'Reemplaza la lista completa de combo_detalle del combo.
+
+
+        Roles autorizados: Administrador.'
+      operationId: definirComponentesCombo
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del combo
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComboDetalle'
+        description: Lista de componentes
+      responses:
+        '200':
+          description: Combo actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Combo'
+  /pedidos:
+    get:
+      summary: Buscar pedidos
+      tags:
+      - Pedidos
+      description: 'RF-044.
+
+
+        Roles autorizados: Caja, Administrador, Mesero.'
+      operationId: buscarPedidos
+      parameters:
+      - *id003
+      - *id004
+      - *id005
+      - name: estado
+        in: query
+        required: false
+        description: Filtrar por estado
+        schema:
+          type: string
+          enum:
+          - creado
+          - pago_pendiente
+          - pago_validado
+          - en_preparacion
+          - listo
+          - entregado
+          - recogido
+          - despachado
+          - rechazado
+          - devuelto
+          - no_recibido
+          - anulado
+      - name: tipo
+        in: query
+        required: false
+        description: Filtrar por tipo
+        schema:
+          type: string
+          enum:
+          - local
+          - recoger
+          - domicilio
+      - name: desde
+        in: query
+        required: false
+        description: Fecha inicial
+        schema:
+          type: string
+          format: date
+      - name: hasta
+        in: query
+        required: false
+        description: Fecha final
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Pedidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaPedido'
+    post:
+      summary: Crear pedido
+      tags:
+      - Pedidos
+      description: 'RF-005, RF-006, RF-007: autenticación opcional — un pedido de QR de mesa sin login
+        no manda token; un pedido de Cliente o Mesero sí, y el backend lo asocia al usuario autenticado.
+        El canal (web/qr/mesero) y el tipo determinan qué campos son obligatorios.
+
+
+        Roles autorizados: Cliente, Mesero, Invitado con QR de mesa (sin token).'
+      operationId: crearPedido
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Evita crear pedidos duplicados ante reintentos de red (RNF-007)
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearPedidoRequest'
+      responses:
+        '201':
+          description: Pedido creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '422': *id001
+      security:
+      - {}
+      - bearerAuth: []
+  /pedidos/{id}:
+    get:
+      summary: Ver pedido
+      tags:
+      - Pedidos
+      description: '
+
+
+        Roles autorizados: Dueño del pedido, Mesero, Caja, Cocina, Despachos, Administrador.'
+      operationId: verPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Pedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '404': *id002
+  /pedidos/{id}/items:
+    patch:
+      summary: Modificar ítems del pedido
+      tags:
+      - Pedidos
+      description: 'RF-012: exige motivo; se registra en historial_pedido con el actor y el valor anterior.
+
+
+        Roles autorizados: Mesero, Caja, Administrador.'
+      operationId: modificarItemsPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CambiarItemsPedidoRequest'
+      responses:
+        '200':
+          description: Pedido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '422': *id001
+        '409':
+          description: El pedido ya no admite cambios en su estado actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /pedidos/{id}/historial:
+    get:
+      summary: Historial de cambios del pedido
+      tags:
+      - Pedidos
+      description: '
+
+
+        Roles autorizados: Mesero, Caja, Administrador, Dueño del pedido.'
+      operationId: historialPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Historial
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistorialPedido'
+  /pedidos/{id}/confirmar-pago:
+    post:
+      summary: Confirmar pago manualmente
+      tags:
+      - Pedidos
+      description: 'Pago pendiente → Pago validado. RF-015. El pago automático de pasarela llega por /pagos/webhook.
+
+
+        Roles autorizados: Caja.'
+      operationId: confirmarPagoPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccionPedidoRequest'
+        description: motivo obligatorio solo para anular/rechazar
+      responses:
+        '200':
+          description: Pedido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '409':
+          description: Transición no permitida desde el estado actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': &id007
+          description: Sin permiso para esta operación (rol insuficiente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /pedidos/{id}/iniciar-preparacion:
+    post:
+      summary: Iniciar preparación
+      tags:
+      - Pedidos
+      description: 'Pago validado → En preparación. RF-017: rechazado si el pago no está validado.
+
+
+        Roles autorizados: Cocina.'
+      operationId: iniciarPreparacionPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccionPedidoRequest'
+        description: motivo obligatorio solo para anular/rechazar
+      responses:
+        '200':
+          description: Pedido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '409':
+          description: Transición no permitida desde el estado actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': *id007
+  /pedidos/{id}/marcar-listo:
+    post:
+      summary: Marcar como listo
+      tags:
+      - Pedidos
+      description: 'En preparación → Listo. RF-022, dispara notificación RF-023.
+
+
+        Roles autorizados: Cocina.'
+      operationId: marcarListoPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccionPedidoRequest'
+        description: motivo obligatorio solo para anular/rechazar
+      responses:
+        '200':
+          description: Pedido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '409':
+          description: Transición no permitida desde el estado actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': *id007
+  /pedidos/{id}/entregar:
+    post:
+      summary: Marcar como entregado
+      tags:
+      - Pedidos
+      description: 'Listo → Entregado (pedidos tipo local).
+
+
+        Roles autorizados: Mesero, Caja.'
+      operationId: entregarPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccionPedidoRequest'
+        description: motivo obligatorio solo para anular/rechazar
+      responses:
+        '200':
+          description: Pedido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '409':
+          description: Transición no permitida desde el estado actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': *id007
+  /pedidos/{id}/recoger:
+    post:
+      summary: Marcar como recogido
+      tags:
+      - Pedidos
+      description: 'Listo → Recogido (pedidos tipo recoger).
+
+
+        Roles autorizados: Caja.'
+      operationId: recogerPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccionPedidoRequest'
+        description: motivo obligatorio solo para anular/rechazar
+      responses:
+        '200':
+          description: Pedido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '409':
+          description: Transición no permitida desde el estado actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': *id007
+  /pedidos/{id}/despachar:
+    post:
+      summary: Enviar a despacho
+      tags:
+      - Pedidos
+      description: 'Listo → Despachado (pedidos tipo domicilio); crea el registro en despacho.
+
+
+        Roles autorizados: Despachos.'
+      operationId: despacharPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccionPedidoRequest'
+        description: motivo obligatorio solo para anular/rechazar
+      responses:
+        '200':
+          description: Pedido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '409':
+          description: Transición no permitida desde el estado actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': *id007
+  /pedidos/{id}/anular:
+    post:
+      summary: Anular pedido
+      tags:
+      - Pedidos
+      description: 'Cualquier estado → Anulado. Requiere motivo; queda auditado (RN-002).
+
+
+        Roles autorizados: Administrador, Caja.'
+      operationId: anularPedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccionPedidoRequest'
+        description: motivo obligatorio solo para anular/rechazar
+      responses:
+        '200':
+          description: Pedido actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+        '409':
+          description: Transición no permitida desde el estado actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403': *id007
+  /cocina/pedidos:
+    get:
+      summary: Cola de cocina
+      tags:
+      - Cocina
+      description: 'RF-018 a RF-021: solo pedidos habilitados (pago_validado en adelante), ordenados por
+        hora de entrada.
+
+
+        Roles autorizados: Cocina.'
+      operationId: colaCocina
+      parameters:
+      - name: tipo
+        in: query
+        required: false
+        description: Filtrar por tipo
+        schema:
+          type: string
+          enum:
+          - local
+          - recoger
+          - domicilio
+      - name: estado
+        in: query
+        required: false
+        description: Filtrar por estado
+        schema:
+          type: string
+          enum:
+          - pago_validado
+          - en_preparacion
+          - listo
+      responses:
+        '200':
+          description: Cola de pedidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+  /metodos-pago:
+    get:
+      summary: Listar métodos de pago
+      tags:
+      - Pagos
+      description: 'RF-035.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: listarMetodosPago
+      responses:
+        '200':
+          description: Métodos de pago
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetodoPago'
+      security: []
+    post:
+      summary: Crear método de pago
+      tags:
+      - Pagos
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearMetodoPago
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetodoPago'
+      responses:
+        '201':
+          description: Método creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetodoPago'
+  /pedidos/{id}/pagos:
+    post:
+      summary: Registrar intento de pago
+      tags:
+      - Pagos
+      description: 'RF-014, RF-016: crea el pago en estado pendiente; para web normalmente sigue con redirección
+        a la pasarela.
+
+
+        Roles autorizados: Cliente, Mesero, Caja.'
+      operationId: registrarPago
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pedido
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarPagoRequest'
+      responses:
+        '201':
+          description: Pago registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pago'
+  /pagos/webhook/{proveedor}:
+    post:
+      summary: Webhook de confirmación de pasarela
+      tags:
+      - Pagos
+      description: 'RF-016, RNF-007, RNF-008: valida la firma del proveedor y procesa de forma idempotente
+        por referenciaExterna.
+
+
+        Roles autorizados: Sistema (pasarela de pagos).'
+      operationId: webhookPago
+      parameters:
+      - name: proveedor
+        in: path
+        required: true
+        description: Identificador de la pasarela
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPagoRequest'
+      responses:
+        '200':
+          description: Procesado (o ya procesado antes, de forma idempotente)
+        '401':
+          description: Firma inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /pagos/{id}/validar:
+    post:
+      summary: Validar pago manualmente
+      tags:
+      - Pagos
+      description: 'RF-015, canal WhatsApp/local.
+
+
+        Roles autorizados: Caja.'
+      operationId: validarPago
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pago
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Pago validado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pago'
+  /pagos/{id}/rechazar:
+    post:
+      summary: Rechazar pago
+      tags:
+      - Pagos
+      description: '
+
+
+        Roles autorizados: Caja.'
+      operationId: rechazarPago
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del pago
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccionPedidoRequest'
+      responses:
+        '200':
+          description: Pago rechazado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pago'
+  /caja/apertura:
+    post:
+      summary: Abrir caja
+      tags:
+      - Caja
+      description: 'RF-036.
+
+
+        Roles autorizados: Caja.'
+      operationId: abrirCaja
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbrirCajaRequest'
+      responses:
+        '201':
+          description: Caja abierta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Caja'
+        '409':
+          description: Ya existe una caja abierta para este turno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /caja/actual:
+    get:
+      summary: Ver caja abierta actual
+      tags:
+      - Caja
+      description: '
+
+
+        Roles autorizados: Caja, Administrador.'
+      operationId: cajaActual
+      responses:
+        '200':
+          description: Caja actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Caja'
+        '404':
+          description: No hay caja abierta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /caja/{id}/movimientos:
+    get:
+      summary: Listar movimientos de caja
+      tags:
+      - Caja
+      description: '
+
+
+        Roles autorizados: Caja, Administrador.'
+      operationId: listarMovimientosCaja
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID de la caja
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Movimientos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovimientoCaja'
+    post:
+      summary: Registrar movimiento manual
+      tags:
+      - Caja
+      description: 'Ingreso/egreso no ligado a un pedido.
+
+
+        Roles autorizados: Caja.'
+      operationId: registrarMovimientoCaja
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID de la caja
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovimientoCajaRequest'
+      responses:
+        '201':
+          description: Movimiento registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovimientoCaja'
+  /caja/{id}/cierre:
+    post:
+      summary: Cerrar caja
+      tags:
+      - Caja
+      description: 'RF-037: calcula esperado, real y diferencia.
+
+
+        Roles autorizados: Caja.'
+      operationId: cerrarCaja
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID de la caja
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CerrarCajaRequest'
+      responses:
+        '200':
+          description: Caja cerrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Caja'
+  /caja/historial:
+    get:
+      summary: Historial de cierres de caja
+      tags:
+      - Caja
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: historialCaja
+      parameters: *id006
+      responses:
+        '200':
+          description: Historial de cierres
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Caja'
+  /zonas-domicilio:
+    get:
+      summary: Listar zonas de domicilio
+      tags:
+      - Domicilios
+      description: 'RF-030, para mostrar tarifas en checkout.
+
+
+        Endpoint público, sin autenticación.'
+      operationId: listarZonasDomicilio
+      responses:
+        '200':
+          description: Zonas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZonaDomicilio'
+      security: []
+    post:
+      summary: Crear zona de domicilio
+      tags:
+      - Domicilios
+      description: '
+
+
+        Roles autorizados: Administrador.'
+      operationId: crearZonaDomicilio
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ZonaDomicilio'
+      responses:
+        '201':
+          description: Zona creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZonaDomicilio'
+  /zonas-domicilio/{id}/tarifa:
+    patch:
+      summary: Actualizar tarifa de una zona
+      tags:
+      - Domicilios
+      description: 'Inserta una nueva tarifa vigente y cierra la anterior (vigente_hasta), no la sobrescribe
+        (RN-005).
+
+
+        Roles autorizados: Administrador.'
+      operationId: actualizarTarifaZona
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID de la zona
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualizarTarifaRequest'
+      responses:
+        '200':
+          description: Tarifa actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZonaDomicilio'
+  /despachos:
+    get:
+      summary: Cola de despachos
+      tags:
+      - Despachos
+      description: '
+
+
+        Roles autorizados: Despachos, Administrador.'
+      operationId: listarDespachos
+      responses:
+        '200':
+          description: Despachos pendientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despacho'
+  /despachos/{id}/asignar:
+    post:
+      summary: Asignar domiciliario
+      tags:
+      - Despachos
+      description: '
+
+
+        Roles autorizados: Despachos, Administrador.'
+      operationId: asignarDespacho
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del despacho
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Despacho asignado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despacho'
+  /despachos/{id}/en-camino:
+    post:
+      summary: Marcar en camino
+      tags:
+      - Despachos
+      description: '
+
+
+        Roles autorizados: Despachos.'
+      operationId: despachoEnCamino
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del despacho
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Despacho en camino
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despacho'
+  /despachos/{id}/entregar:
+    post:
+      summary: Marcar entregado
+      tags:
+      - Despachos
+      description: '
+
+
+        Roles autorizados: Despachos.'
+      operationId: entregarDespacho
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID del despacho
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Despacho entregado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despacho'
+  /notificaciones:
+    get:
+      summary: Mis notificaciones / notificaciones del sistema
+      tags:
+      - Notificaciones
+      description: 'Sección 14: las notificaciones se generan automáticamente en las transiciones de pedido,
+        no se crean vía API.
+
+
+        Roles autorizados: Dueño del pedido, Administrador.'
+      operationId: listarNotificaciones
+      parameters: *id006
+      responses:
+        '200':
+          description: Notificaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaNotificacion'
+  /informes/ventas:
+    get:
+      summary: Ventas por periodo
+      tags:
+      - Informes
+      description: 'RF-042.
+
+
+        Roles autorizados: Administrador.'
+      operationId: informeVentas
+      parameters:
+      - &id008
+        name: desde
+        in: query
+        required: false
+        description: Fecha inicial
+        schema:
+          type: string
+          format: date
+      - &id009
+        name: hasta
+        in: query
+        required: false
+        description: Fecha final
+        schema:
+          type: string
+          format: date
+      - name: agrupar
+        in: query
+        required: false
+        description: Granularidad
+        schema:
+          type: string
+          enum:
+          - dia
+          - semana
+          - mes
+      responses:
+        '200':
+          description: Resumen de ventas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumenVentas'
+  /informes/productos-mas-vendidos:
+    get:
+      summary: Productos y combos más vendidos
+      tags:
+      - Informes
+      description: 'RF-043.
+
+
+        Roles autorizados: Administrador.'
+      operationId: informeProductosMasVendidos
+      parameters:
+      - *id008
+      - *id009
+      responses:
+        '200':
+          description: Ranking de productos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductoVendido'
+  /dashboard/resumen:
+    get:
+      summary: Resumen del dashboard
+      tags:
+      - Informes
+      description: 'RF-041.
+
+
+        Roles autorizados: Administrador.'
+      operationId: dashboardResumen
+      responses:
+        '200':
+          description: KPIs del día
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumenVentas'
+  /auditoria:
+    get:
+      summary: Consultar bitácora de auditoría
+      tags:
+      - Auditoría
+      description: 'RF-039.
+
+
+        Roles autorizados: Administrador.'
+      operationId: listarAuditoria
+      parameters:
+      - *id003
+      - *id004
+      - *id005
+      - name: entidad
+        in: query
+        required: false
+        description: Filtrar por entidad afectada
+        schema:
+          type: string
+      - name: usuarioId
+        in: query
+        required: false
+        description: Filtrar por actor
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Auditoría
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaAuditoria'
+  /configuracion:
+    get:
+      summary: Ver configuración general
+      tags:
+      - Configuración
+      description: 'RF-045.
+
+
+        Roles autorizados: Administrador.'
+      operationId: verConfiguracion
+      responses:
+        '200':
+          description: Parámetros de configuración
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Configuracion'
+  /configuracion/{clave}:
+    patch:
+      summary: Actualizar un parámetro
+      tags:
+      - Configuración
+      description: 'Incluye modulo_domicilios_activo (RF-032).
+
+
+        Roles autorizados: Administrador.'
+      operationId: actualizarConfiguracion
+      parameters:
+      - name: clave
+        in: path
+        required: true
+        description: Clave del parámetro
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Configuracion'
+      responses:
+        '200':
+          description: Parámetro actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Configuracion'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        codigo:
+          type: string
+          example: RECURSO_NO_ENCONTRADO
+        mensaje:
+          type: string
+          example: El pedido solicitado no existe.
+        detalles:
+          type: array
+          items:
+            type: string
+      required:
+      - codigo
+      - mensaje
+    Rol:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Cocina
+        descripcion:
+          type: string
+    Permiso:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        codigo:
+          type: string
+          example: pedido.crear
+        descripcion:
+          type: string
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        rol:
+          $ref: '#/components/schemas/Rol'
+        nombre:
+          type: string
+          example: Carlos Ramírez
+        email:
+          type: string
+          format: email
+        telefono:
+          type: string
+        activo:
+          type: boolean
+        creadoEn:
+          type: string
+          format: date-time
+      required:
+      - id
+      - rol
+      - nombre
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+      - email
+      - password
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        usuario:
+          $ref: '#/components/schemas/Usuario'
+    RegistroClienteRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+        email:
+          type: string
+          format: email
+        telefono:
+          type: string
+        password:
+          type: string
+          format: password
+          minLength: 8
+      required:
+      - nombre
+      - email
+      - password
+    Direccion:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        etiqueta:
+          type: string
+          example: Casa
+        direccionTexto:
+          type: string
+        zonaDomicilioId:
+          type: integer
+          format: int64
+          example: 1
+        referencia:
+          type: string
+        predeterminada:
+          type: boolean
+      required:
+      - direccionTexto
+    Mesa:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        numero:
+          type: string
+          example: '12'
+        capacidad:
+          type: integer
+        activa:
+          type: boolean
+    QrMesa:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        mesaId:
+          type: integer
+          format: int64
+          example: 1
+        codigo:
+          type: string
+        activo:
+          type: boolean
+        urlQr:
+          type: string
+          format: uri
+    Categoria:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Desgranados
+        orden:
+          type: integer
+        activa:
+          type: boolean
+    ImagenProducto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        url:
+          type: string
+          format: uri
+        orden:
+          type: integer
+    ValorOpcion:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Grande
+        precioAdicional:
+          type: number
+          format: decimal
+          example: 15000
+    Opcion:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Tamaño
+        tipo:
+          type: string
+          enum:
+          - unica
+          - multiple
+        valores:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValorOpcion'
+    Adicional:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Extra queso
+        precio:
+          type: number
+          format: decimal
+          example: 15000
+        disponible:
+          type: boolean
+    Producto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        categoriaId:
+          type: integer
+          format: int64
+          example: 1
+        codigo:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        precio:
+          type: number
+          format: decimal
+          example: 15000
+        disponible:
+          type: boolean
+        activo:
+          type: boolean
+        imagenes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImagenProducto'
+        opciones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Opcion'
+        adicionales:
+          type: array
+          items:
+            $ref: '#/components/schemas/Adicional'
+      required:
+      - nombre
+      - precio
+    ComboDetalle:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        productoId:
+          type: integer
+          format: int64
+          example: 1
+        productoNombre:
+          type: string
+        grupo:
+          type: string
+          nullable: true
+          example: bebida
+        cantidad:
+          type: integer
+    Combo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        precio:
+          type: number
+          format: decimal
+          example: 15000
+        disponible:
+          type: boolean
+        activo:
+          type: boolean
+        componentes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComboDetalle'
+      required:
+      - nombre
+      - precio
+    ItemPedidoRequest:
+      type: object
+      properties:
+        productoId:
+          type: integer
+          format: int64
+          example: 1
+        comboId:
+          type: integer
+          format: int64
+          example: 1
+        cantidad:
+          type: integer
+          minimum: 1
+          default: 1
+        valoresOpcionId:
+          type: array
+          items:
+            type: integer
+            format: int64
+            example: 1
+        adicionalesId:
+          type: array
+          items:
+            type: integer
+            format: int64
+            example: 1
+        observaciones:
+          type: string
+      description: Debe incluir productoId o comboId, nunca ambos.
+    PedidoDetalle:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        productoId:
+          type: integer
+          format: int64
+          example: 1
+        comboId:
+          type: integer
+          format: int64
+          example: 1
+        nombreSnapshot:
+          type: string
+        precioUnitarioSnapshot:
+          type: number
+          format: decimal
+          example: 15000
+        cantidad:
+          type: integer
+        subtotalLinea:
+          type: number
+          format: decimal
+          example: 15000
+    Pedido:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        tipo:
+          type: string
+          enum:
+          - local
+          - recoger
+          - domicilio
+        canal:
+          type: string
+          enum:
+          - web
+          - qr
+          - mesero
+          - whatsapp
+        estado:
+          type: string
+          enum:
+          - creado
+          - pago_pendiente
+          - pago_validado
+          - en_preparacion
+          - listo
+          - entregado
+          - recogido
+          - despachado
+          - rechazado
+          - devuelto
+          - no_recibido
+          - anulado
+        clienteId:
+          type: integer
+          format: int64
+          example: 1
+        mesaId:
+          type: integer
+          format: int64
+          example: 1
+        direccionTexto:
+          type: string
+        subtotal:
+          type: number
+          format: decimal
+          example: 15000
+        totalAdicionales:
+          type: number
+          format: decimal
+          example: 15000
+        descuento:
+          type: number
+          format: decimal
+          example: 15000
+        domicilio:
+          type: number
+          format: decimal
+          example: 15000
+        total:
+          type: number
+          format: decimal
+          example: 15000
+        observaciones:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PedidoDetalle'
+        creadoEn:
+          type: string
+          format: date-time
+        actualizadoEn:
+          type: string
+          format: date-time
+    CrearPedidoRequest:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum:
+          - local
+          - recoger
+          - domicilio
+        mesaCodigoQr:
+          type: string
+          description: Requerido si el pedido viene de un QR de mesa sin login
+        direccionId:
+          type: integer
+          format: int64
+          example: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemPedidoRequest'
+        observaciones:
+          type: string
+      required:
+      - tipo
+      - items
+    CambiarItemsPedidoRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemPedidoRequest'
+        motivo:
+          type: string
+      required:
+      - items
+      - motivo
+    AccionPedidoRequest:
+      type: object
+      properties:
+        motivo:
+          type: string
+    HistorialPedido:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        usuarioId:
+          type: integer
+          format: int64
+          example: 1
+        usuarioNombre:
+          type: string
+        campoModificado:
+          type: string
+        valorAnterior:
+          type: string
+        valorNuevo:
+          type: string
+        motivo:
+          type: string
+        creadoEn:
+          type: string
+          format: date-time
+    MetodoPago:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Nequi
+        activo:
+          type: boolean
+    RegistrarPagoRequest:
+      type: object
+      properties:
+        metodoPagoId:
+          type: integer
+          format: int64
+          example: 1
+        monto:
+          type: number
+          format: decimal
+          example: 15000
+      required:
+      - metodoPagoId
+      - monto
+    Pago:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        pedidoId:
+          type: integer
+          format: int64
+          example: 1
+        metodoPagoId:
+          type: integer
+          format: int64
+          example: 1
+        monto:
+          type: number
+          format: decimal
+          example: 15000
+        estado:
+          type: string
+          enum:
+          - pendiente
+          - validado
+          - rechazado
+          - anulado
+        referenciaExterna:
+          type: string
+        creadoEn:
+          type: string
+          format: date-time
+        validadoEn:
+          type: string
+          format: date-time
+    WebhookPagoRequest:
+      type: object
+      properties:
+        referenciaExterna:
+          type: string
+        estado:
+          type: string
+          enum:
+          - validado
+          - rechazado
+        monto:
+          type: number
+          format: decimal
+          example: 15000
+        firma:
+          type: string
+          description: Firma HMAC del proveedor para verificar el origen (RNF-008)
+      required:
+      - referenciaExterna
+      - estado
+      - firma
+    AbrirCajaRequest:
+      type: object
+      properties:
+        montoApertura:
+          type: number
+          format: decimal
+          example: 15000
+      required:
+      - montoApertura
+    Caja:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        usuarioAperturaNombre:
+          type: string
+        montoApertura:
+          type: number
+          format: decimal
+          example: 15000
+        estado:
+          type: string
+          enum:
+          - abierta
+          - cerrada
+        montoEsperado:
+          type: number
+          format: decimal
+          example: 15000
+        montoReal:
+          type: number
+          format: decimal
+          example: 15000
+        diferencia:
+          type: number
+          format: decimal
+          example: 15000
+        abiertaEn:
+          type: string
+          format: date-time
+        cerradaEn:
+          type: string
+          format: date-time
+    CerrarCajaRequest:
+      type: object
+      properties:
+        montoReal:
+          type: number
+          format: decimal
+          example: 15000
+      required:
+      - montoReal
+    MovimientoCajaRequest:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum:
+          - ingreso
+          - egreso
+        monto:
+          type: number
+          format: decimal
+          example: 15000
+        descripcion:
+          type: string
+      required:
+      - tipo
+      - monto
+    MovimientoCaja:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        tipo:
+          type: string
+        monto:
+          type: number
+          format: decimal
+          example: 15000
+        pedidoId:
+          type: integer
+          format: int64
+          example: 1
+        descripcion:
+          type: string
+        usuarioNombre:
+          type: string
+        creadoEn:
+          type: string
+          format: date-time
+    ZonaDomicilio:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: Zona 1
+        activa:
+          type: boolean
+        tarifaVigente:
+          type: number
+          format: decimal
+          example: 15000
+        tiempoEstimadoMinutos:
+          type: integer
+    ActualizarTarifaRequest:
+      type: object
+      properties:
+        tarifa:
+          type: number
+          format: decimal
+          example: 15000
+        tiempoEstimadoMinutos:
+          type: integer
+      required:
+      - tarifa
+    Despacho:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        pedidoId:
+          type: integer
+          format: int64
+          example: 1
+        domiciliarioId:
+          type: integer
+          format: int64
+          example: 1
+        domiciliarioNombre:
+          type: string
+        estado:
+          type: string
+          enum:
+          - asignado
+          - en_camino
+          - entregado
+          - no_entregado
+        asignadoEn:
+          type: string
+          format: date-time
+        entregadoEn:
+          type: string
+          format: date-time
+    Notificacion:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        pedidoId:
+          type: integer
+          format: int64
+          example: 1
+        canal:
+          type: string
+          enum:
+          - web
+          - sms
+          - email
+          - whatsapp
+        tipo:
+          type: string
+        contenido:
+          type: string
+        estado:
+          type: string
+          enum:
+          - pendiente
+          - enviada
+          - fallida
+        creadoEn:
+          type: string
+          format: date-time
+    Auditoria:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        usuarioNombre:
+          type: string
+        accion:
+          type: string
+        entidad:
+          type: string
+        entidadId:
+          type: string
+        valorAnterior:
+          type: object
+        valorNuevo:
+          type: object
+        motivo:
+          type: string
+        origen:
+          type: string
+        creadoEn:
+          type: string
+          format: date-time
+    Configuracion:
+      type: object
+      properties:
+        clave:
+          type: string
+        valor:
+          type: string
+        descripcion:
+          type: string
+    ResumenVentas:
+      type: object
+      properties:
+        periodo:
+          type: string
+        numeroPedidos:
+          type: integer
+        ventasTotal:
+          type: number
+          format: decimal
+          example: 15000
+        ticketPromedio:
+          type: number
+          format: decimal
+          example: 15000
+    ProductoVendido:
+      type: object
+      properties:
+        productoId:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+        unidadesVendidas:
+          type: integer
+        ventasTotal:
+          type: number
+          format: decimal
+          example: 15000
+    PaginaProducto:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/Producto'
+        pagina:
+          type: integer
+        tamano:
+          type: integer
+        totalElementos:
+          type: integer
+        totalPaginas:
+          type: integer
+    PaginaCombo:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/Combo'
+        pagina:
+          type: integer
+        tamano:
+          type: integer
+        totalElementos:
+          type: integer
+        totalPaginas:
+          type: integer
+    PaginaPedido:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pedido'
+        pagina:
+          type: integer
+        tamano:
+          type: integer
+        totalElementos:
+          type: integer
+        totalPaginas:
+          type: integer
+    PaginaUsuario:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/Usuario'
+        pagina:
+          type: integer
+        tamano:
+          type: integer
+        totalElementos:
+          type: integer
+        totalPaginas:
+          type: integer
+    PaginaAuditoria:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/Auditoria'
+        pagina:
+          type: integer
+        tamano:
+          type: integer
+        totalElementos:
+          type: integer
+        totalPaginas:
+          type: integer
+    PaginaNotificacion:
+      type: object
+      properties:
+        contenido:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notificacion'
+        pagina:
+          type: integer
+        tamano:
+          type: integer
+        totalElementos:
+          type: integer
+        totalPaginas:
+          type: integer

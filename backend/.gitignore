@@ -1,5 +1,6 @@
 target/
 *.class
+uploads/
 .mvn/
 !.mvn/wrapper/maven-wrapper.jar
 .idea/

@@ -1,6 +1,7 @@
 package com.mrelote.pedidos.service;
 
 import com.mrelote.pedidos.domain.EstadoPedido;
+import com.mrelote.pedidos.dto.request.CambiarItemsPedidoRequest;
 import com.mrelote.pedidos.dto.request.CrearPedidoRequest;
 import com.mrelote.pedidos.dto.request.ItemPedidoRequest;
 import com.mrelote.pedidos.dto.response.HistorialPedidoResponse;
@@ -42,6 +43,7 @@ public class PedidoService {
     private final DireccionRepository direccionRepository;
     private final TarifaDomicilioRepository tarifaDomicilioRepository;
     private final UsuarioRepository usuarioRepository;
+    private final NotificacionService notificacionService;
 
     // ---------------------------------------------------------------
     // Creación (RF-005, RF-006, RF-007) — autenticación opcional, ver
@@ -139,7 +141,10 @@ public class PedidoService {
         pedido.setTotalAdicionales(totalAdicionales);
         pedido.setTotal(subtotal.add(totalAdicionales).add(domicilio).subtract(pedido.getDescuento()));
 
-        return PedidoResponse.from(pedidoRepository.save(pedido));
+        pedido = pedidoRepository.save(pedido);
+        notificacionService.notificar(pedido, "confirmacion_pedido",
+                "Tu pedido #" + pedido.getId() + " fue recibido por $" + pedido.getTotal());
+        return PedidoResponse.from(pedido);
     }
 
     private PedidoDetalle construirLinea(ItemPedidoRequest itemReq, Pedido pedido) {
@@ -222,6 +227,58 @@ public class PedidoService {
         return detalle;
     }
 
+    /**
+     * RF-012: solo antes de que el pago quede validado — una vez cocina
+     * puede haber empezado a preparar, cambiar los ítems ya no es seguro.
+     * Exige motivo y queda registrado en historial_pedido con el detalle
+     * anterior (RN-002).
+     */
+    @Transactional
+    public PedidoResponse modificarItems(Long id, CambiarItemsPedidoRequest request, Authentication auth) {
+        Pedido pedido = buscarEntidad(id);
+        if (!EstadoPedido.CREADO.equals(pedido.getEstado()) && !EstadoPedido.PAGO_PENDIENTE.equals(pedido.getEstado())) {
+            throw new ConflictException("El pedido ya no admite cambios en su estado actual ('" + pedido.getEstado() + "')");
+        }
+
+        String itemsAnteriores = pedido.getItems().stream()
+                .map(d -> d.getCantidad() + "x " + d.getNombreSnapshot())
+                .reduce((a, b) -> a + ", " + b).orElse("");
+
+        pedido.getItems().clear();
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal totalAdicionales = BigDecimal.ZERO;
+        List<PedidoDetalle> items = new ArrayList<>();
+        for (ItemPedidoRequest itemReq : request.items()) {
+            PedidoDetalle detalle = construirLinea(itemReq, pedido);
+            items.add(detalle);
+            subtotal = subtotal.add(detalle.getSubtotalLinea());
+            totalAdicionales = totalAdicionales.add(
+                    detalle.getAdicionales().stream()
+                            .map(a -> a.getPrecioSnapshot().multiply(BigDecimal.valueOf(a.getCantidad())))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add));
+        }
+        pedido.getItems().addAll(items);
+        pedido.setSubtotal(subtotal);
+        pedido.setTotalAdicionales(totalAdicionales);
+        pedido.setTotal(subtotal.add(totalAdicionales).add(pedido.getDomicilio()).subtract(pedido.getDescuento()));
+        pedido = pedidoRepository.save(pedido);
+
+        String itemsNuevos = pedido.getItems().stream()
+                .map(d -> d.getCantidad() + "x " + d.getNombreSnapshot())
+                .reduce((a, b) -> a + ", " + b).orElse("");
+
+        UsuarioPrincipal principal = principalDe(auth);
+        historialPedidoRepository.save(HistorialPedido.builder()
+                .pedido(pedido)
+                .usuario(principal != null ? principal.usuario() : null)
+                .campoModificado("items")
+                .valorAnterior(itemsAnteriores)
+                .valorNuevo(itemsNuevos)
+                .motivo(request.motivo())
+                .build());
+        return PedidoResponse.from(pedido);
+    }
+
     // ---------------------------------------------------------------
     // Consultas
     // ---------------------------------------------------------------
@@ -251,27 +308,36 @@ public class PedidoService {
     // ---------------------------------------------------------------
     @Transactional
     public PedidoResponse confirmarPago(Long id, String motivo, Authentication auth) {
-        return transicionar(id, EstadoPedido.ORIGEN_CONFIRMAR_PAGO, EstadoPedido.PAGO_VALIDADO, motivo, auth);
+        return transicionar(id, EstadoPedido.ORIGEN_CONFIRMAR_PAGO, EstadoPedido.PAGO_VALIDADO, motivo, auth,
+                "pago_confirmado", "Tu pago fue confirmado, tu pedido pasa a cocina.");
     }
 
     @Transactional
     public PedidoResponse iniciarPreparacion(Long id, String motivo, Authentication auth) {
-        return transicionar(id, EstadoPedido.ORIGEN_INICIAR_PREPARACION, EstadoPedido.EN_PREPARACION, motivo, auth);
+        return transicionar(id, EstadoPedido.ORIGEN_INICIAR_PREPARACION, EstadoPedido.EN_PREPARACION, motivo, auth,
+                "en_preparacion", "Tu pedido está en preparación.");
     }
 
     @Transactional
     public PedidoResponse marcarListo(Long id, String motivo, Authentication auth) {
-        return transicionar(id, EstadoPedido.ORIGEN_MARCAR_LISTO, EstadoPedido.LISTO, motivo, auth);
+        Pedido pedido = buscarEntidad(id);
+        String tipoNotif = "recoger".equals(pedido.getTipo()) ? "listo_recoger" : "listo_entregar";
+        String mensaje = "recoger".equals(pedido.getTipo())
+                ? "Tu pedido está listo para recoger."
+                : "Tu pedido está listo, ya te lo llevamos a la mesa.";
+        return transicionar(id, EstadoPedido.ORIGEN_MARCAR_LISTO, EstadoPedido.LISTO, motivo, auth, tipoNotif, mensaje);
     }
 
     @Transactional
     public PedidoResponse entregar(Long id, String motivo, Authentication auth) {
-        return transicionar(id, EstadoPedido.ORIGEN_ENTREGAR, EstadoPedido.ENTREGADO, motivo, auth);
+        return transicionar(id, EstadoPedido.ORIGEN_ENTREGAR, EstadoPedido.ENTREGADO, motivo, auth,
+                "entregado", "Tu pedido fue entregado. ¡Buen provecho!");
     }
 
     @Transactional
     public PedidoResponse recoger(Long id, String motivo, Authentication auth) {
-        return transicionar(id, EstadoPedido.ORIGEN_RECOGER, EstadoPedido.RECOGIDO, motivo, auth);
+        return transicionar(id, EstadoPedido.ORIGEN_RECOGER, EstadoPedido.RECOGIDO, motivo, auth,
+                "entregado", "Tu pedido fue recogido. ¡Buen provecho!");
     }
 
     @Transactional
@@ -280,7 +346,8 @@ public class PedidoService {
         if (!"domicilio".equals(pedido.getTipo())) {
             throw new BusinessRuleException("Solo los pedidos de tipo domicilio pasan a despacho");
         }
-        PedidoResponse respuesta = transicionar(id, EstadoPedido.ORIGEN_DESPACHAR, EstadoPedido.DESPACHADO, motivo, auth);
+        PedidoResponse respuesta = transicionar(id, EstadoPedido.ORIGEN_DESPACHAR, EstadoPedido.DESPACHADO, motivo, auth,
+                "despachado", "Tu pedido salió para entrega a domicilio.");
         despachoRepository.save(Despacho.builder().pedido(pedido).estado("asignado").build());
         return respuesta;
     }
@@ -294,7 +361,8 @@ public class PedidoService {
         if (EstadoPedido.ESTADOS_FINALES.contains(pedido.getEstado())) {
             throw new ConflictException("El pedido ya está en un estado final ('" + pedido.getEstado() + "')");
         }
-        return transicionar(id, Set.of(pedido.getEstado()), EstadoPedido.ANULADO, motivo, auth);
+        return transicionar(id, Set.of(pedido.getEstado()), EstadoPedido.ANULADO, motivo, auth,
+                null, null);
     }
 
     @Transactional(readOnly = true)
@@ -304,7 +372,8 @@ public class PedidoService {
                 .toList();
     }
 
-    private PedidoResponse transicionar(Long id, Set<String> origenesValidos, String nuevoEstado, String motivo, Authentication auth) {
+    private PedidoResponse transicionar(Long id, Set<String> origenesValidos, String nuevoEstado, String motivo,
+                                         Authentication auth, String notifTipo, String notifMensaje) {
         Pedido pedido = buscarEntidad(id);
         if (!origenesValidos.contains(pedido.getEstado())) {
             throw new ConflictException(
@@ -323,6 +392,10 @@ public class PedidoService {
                 .valorNuevo(nuevoEstado)
                 .motivo(motivo)
                 .build());
+
+        if (notifTipo != null) {
+            notificacionService.notificar(pedido, notifTipo, notifMensaje);
+        }
         return PedidoResponse.from(pedido);
     }
 

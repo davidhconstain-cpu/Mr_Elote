@@ -46,6 +46,7 @@ public class SecurityConfig {
             "/api/v1/metodos-pago/**",
             "/api/v1/zonas-domicilio/**",
             "/api/v1/mesas/qr/**",
+            "/uploads/**",
     };
 
     private static final String[] PUBLIC_ANY_METHOD = {

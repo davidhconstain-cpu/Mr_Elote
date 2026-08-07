@@ -1,6 +1,7 @@
 package com.mrelote.pedidos.controller;
 
 import com.mrelote.pedidos.dto.request.AccionPedidoRequest;
+import com.mrelote.pedidos.dto.request.CambiarItemsPedidoRequest;
 import com.mrelote.pedidos.dto.request.CrearPedidoRequest;
 import com.mrelote.pedidos.dto.response.HistorialPedidoResponse;
 import com.mrelote.pedidos.dto.response.PedidoResponse;
@@ -48,6 +49,12 @@ public class PedidoController {
         return pedidoService.ver(id);
     }
 
+    @PatchMapping("/{id}/items")
+    @PreAuthorize("hasRole('Mesero') or hasRole('Caja') or hasRole('Administrador')")
+    public PedidoResponse modificarItems(@PathVariable Long id, @Valid @RequestBody CambiarItemsPedidoRequest request, Authentication auth) {
+        return pedidoService.modificarItems(id, request, auth);
+    }
+
     @GetMapping("/{id}/historial")
     public List<HistorialPedidoResponse> historial(@PathVariable Long id) {
         return pedidoService.historial(id);
@@ -84,7 +91,7 @@ public class PedidoController {
     }
 
     @PostMapping("/{id}/despachar")
-    @PreAuthorize("hasRole('Despachos')")
+    @PreAuthorize("hasRole('Despachos') or hasRole('Administrador')")
     public PedidoResponse despachar(@PathVariable Long id, @RequestBody(required = false) AccionPedidoRequest body, Authentication auth) {
         return pedidoService.despachar(id, motivo(body), auth);
     }

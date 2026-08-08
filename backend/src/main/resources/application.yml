@@ -26,6 +26,9 @@ mrelote:
     activo-por-defecto: true
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  notificaciones:
+    # Cada cuánto NotificacionDeliveryJob revisa notificaciones "pendiente".
+    intervalo-ms: ${NOTIFICACIONES_INTERVALO_MS:5000}
 
 ---
 spring:

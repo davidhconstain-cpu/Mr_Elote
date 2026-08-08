@@ -164,17 +164,73 @@ No hay ningún usuario de staff sembrado en producción — los 5 usuarios de
 demo (uno por rol, contraseña `password123`) están en
 `V11__seed_usuarios_staff_demo.sql`, pensados solo para desarrollo/pruebas.
 
+## Notificaciones y recuperación de contraseña
+
+Ambas tenían lógica real pendiente de un proveedor externo con
+credenciales que este entorno no tiene (sección 28 del documento de
+requisitos); en vez de dejarlas como stubs, se implementó todo el camino
+real hasta el punto exacto donde hace falta ese proveedor:
+
+- **Notificaciones** (`src/main/java/.../notificacion/`): `NotificacionDeliveryJob`
+  corre cada `mrelote.notificaciones.intervalo-ms` (5s por defecto),
+  toma las notificaciones "pendiente" y las entrega vía `NotificacionSender`
+  — `LogNotificacionSender` es una implementación real sobre el canal que
+  no depende de ningún tercero, el log de la aplicación. Cambiar a
+  SMS/email/WhatsApp real es agregar otra implementación de
+  `NotificacionSender`; el resto (el job, los estados "enviada"/"fallida")
+  no cambia.
+- **Recuperar contraseña** (`PasswordResetService`): `POST /auth/recuperar`
+  genera un token de un solo uso (256 bits, aleatorio), lo guarda con su
+  hash SHA-256 y una expiración de 30 minutos — nunca el token en claro.
+  `POST /auth/recuperar/confirmar` lo consume atómicamente y cambia la
+  contraseña. Responde 202 exista o no el email, para no permitir
+  enumeración de cuentas. Lo único que falta es el transporte real del
+  link (por ahora se loguea, igual que las notificaciones).
+
+## Tests automatizados
+
+`backend/src/test/java` — 13 tests de integración reales (JUnit 5 +
+`@SpringBootTest` con servidor HTTP en un puerto aleatorio), sin mocks:
+auth (registro/login/refresh/recuperar contraseña), catálogo (crear
+producto, disponibilidad, RN-004), el ciclo de vida completo de un pedido
+"recoger" a través de sus 4 transiciones con verificación de permisos por
+rol, pedido a domicilio con cálculo de tarifa, y disponibilidad dinámica
+de combos (componente fijo agotado vs. grupo de alternativas).
+
+No usan Testcontainers: este entorno de desarrollo no tiene salida de red
+hacia Docker Hub (`docker pull postgres` falla con 403 al bajar la
+imagen), así que corren contra una base Postgres real y persistente
+(`mrelote_test`) en vez de un contenedor efímero — ver el javadoc de
+`IntegrationTestBase` para el detalle y cómo migrar a Testcontainers en un
+entorno donde sí haya salida a Docker Hub.
+
+```bash
+createdb mrelote_test --owner mrelote   # una sola vez
+export DB_USER=mrelote DB_PASSWORD=mrelote
+mvn test -Dspring.profiles.active=test
+```
+
+Un detalle real que encontraron estos tests y que las pruebas manuales
+con curl no habían revelado: el `TestRestTemplate` autoconfigurado por
+Spring Boot usa `HttpURLConnection`, que no soporta el método PATCH y
+falla al leer el cuerpo de respuestas de error en modo streaming
+(401/409/422) — no es un bug de la API, es una limitación del cliente HTTP
+de prueba por defecto. Se resolvió construyendo el `TestRestTemplate` con
+`JdkClientHttpRequestFactory` (java.net.http.HttpClient, incluido en el
+JDK), que no tiene ninguno de los dos problemas.
+
 ## Qué queda pendiente (siguiente fase)
 
-- Envío real de notificaciones (job/listener asíncrono que tome las
-  notificaciones "pendiente" y las entregue por el canal correspondiente).
-- Password reset real para `/auth/recuperar` (hoy es un 202 sin efecto,
-  pendiente de proveedor de email).
 - Almacenamiento de imágenes en un servicio tipo S3 en vez de disco local
-  (documentado como simplificación en `WebConfig`/`ImagenProductoService`).
-- Tests automatizados (JUnit/Testcontainers) — hasta ahora la verificación
-  fue manual con scripts de curl contra Postgres real; formalizarla como
-  suite de integración es el siguiente paso natural.
+  (documentado como simplificación en `WebConfig`/`ImagenProductoService`)
+  — bloqueado por no tener credenciales de un proveedor real (AWS u otro)
+  en este entorno.
+- Envío real de notificaciones y del link de recuperación de contraseña
+  por SMS/email/WhatsApp — la lógica ya está completa (ver arriba), solo
+  falta contratar un proveedor y agregar su `NotificacionSender`.
+- Ampliar la suite de tests a los módulos de staff que hoy solo se
+  verificaron manualmente (caja, despachos, informes, auditoría,
+  usuarios/roles).
 
 ## Verificación end-to-end
 
@@ -315,3 +371,14 @@ resultados "en false" durante las pruebas fueron falsos negativos del
 script de prueba (tiempo de espera insuficiente antes de leer el DOM
 recién re-renderizado), no bugs de la aplicación — se repitieron con más
 espera y el estado en base de datos ya era correcto desde la primera vez.
+
+**Ronda 9 — notificaciones reales, recuperación de contraseña y suite de
+tests**: con curl real (no la suite de tests) — un pedido nuevo deja su
+notificación "pendiente" y a los pocos segundos `NotificacionDeliveryJob`
+la deja "enviada" con el log real de `LogNotificacionSender`; el flujo
+completo de recuperación de contraseña (solicitar con email existente y
+con uno inexistente, ambos 202 idénticos; confirmar con el token real
+extraído del log; login con la contraseña vieja falla, con la nueva
+funciona; reusar el mismo token falla) — los 5 pasos correctos. Luego,
+formalizados como los primeros 13 tests automatizados de
+`backend/src/test/java`, corriendo los 13 en verde contra Postgres real.

@@ -101,3 +101,15 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
 - Los 5 usuarios de staff (uno por rol) son de demo/desarrollo
   (`V11__seed_usuarios_staff_demo.sql`, contraseña `password123`) — no
   crear usuarios reales con esa contraseña en producción.
+
+## Estado del proyecto
+
+Los 15 módulos de la especificación de requisitos están implementados con
+lógica real, verificados de extremo a extremo (curl, Playwright, y una
+suite de 13 tests automatizados — ver `backend/README.md`). Lo único que
+queda genuinamente bloqueado, no solo pendiente de tiempo, es lo que
+depende de credenciales de un proveedor externo que este entorno no
+tiene: envío real de notificaciones/recuperación de contraseña por
+SMS/email (la lógica ya está completa, solo falta contratar el proveedor)
+y almacenamiento de imágenes en S3. Todo lo demás en esta lista es dato
+real de Mr. Elote por confirmar, no código por escribir.

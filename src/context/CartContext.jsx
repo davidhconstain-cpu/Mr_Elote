@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useAuth } from './AuthContext'
 
 const CartContext = createContext(null)
 
@@ -11,8 +12,12 @@ const CartContext = createContext(null)
 // productoId/comboId como antes.
 export function CartProvider({ children }) {
   const [items, setItems] = useState([])
+  const { isAuthenticated, openAuthModal } = useAuth()
+  // Ítem que el cliente intentó agregar sin sesión: se guarda, se le pide
+  // iniciar sesión, y al autenticarse entra solo al carrito.
+  const [pendiente, setPendiente] = useState(null)
 
-  const addItem = useCallback((item) => {
+  const pushItem = useCallback((item) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.key === item.key)
       if (existing) {
@@ -21,6 +26,28 @@ export function CartProvider({ children }) {
       return [...prev, { ...item, cantidad: 1 }]
     })
   }, [])
+
+  // Regla del negocio: pedir siempre con cuenta, incluso para recoger en el
+  // local, para que todo pedido quede asociado a un cliente identificable.
+  const addItem = useCallback(
+    (item) => {
+      if (!isAuthenticated) {
+        setPendiente(item)
+        openAuthModal()
+        return false
+      }
+      pushItem(item)
+      return true
+    },
+    [isAuthenticated, openAuthModal, pushItem],
+  )
+
+  useEffect(() => {
+    if (isAuthenticated && pendiente) {
+      pushItem(pendiente)
+      setPendiente(null)
+    }
+  }, [isAuthenticated, pendiente, pushItem])
 
   const removeItem = useCallback((key) => {
     setItems((prev) => prev.filter((i) => i.key !== key))

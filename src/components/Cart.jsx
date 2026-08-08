@@ -60,10 +60,13 @@ export default function Cart() {
     setTipoTouched(true)
   }
 
+  // Todo pedido va con cuenta (ver CartContext: no se puede agregar al carrito
+  // sin sesión), así que incluso "recoger" y "mesa" exigen estar autenticado.
   const puedeConfirmar =
-    tipo === 'recoger' ||
-    (tipo === 'domicilio' && isAuthenticated && direccionId != null) ||
-    (tipo === 'local' && mesa != null)
+    isAuthenticated &&
+    (tipo === 'recoger' ||
+      (tipo === 'domicilio' && direccionId != null) ||
+      (tipo === 'local' && mesa != null))
 
   async function handleConfirmar() {
     setStatus('sending')
@@ -228,9 +231,9 @@ export default function Cart() {
                       )}
                     </div>
 
-                    {tipo === 'domicilio' && !isAuthenticated && (
+                    {!isAuthenticated && (
                       <div className="cart-login-prompt">
-                        <p>Inicia sesión para pedir a domicilio.</p>
+                        <p>Inicia sesión para confirmar tu pedido.</p>
                         <button type="button" className="cart-confirm-button" onClick={openAuthModal}>
                           Iniciar sesión
                         </button>

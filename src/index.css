@@ -24,11 +24,18 @@ body {
 }
 
 #root {
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
   min-height: 100svh;
   background: var(--bg);
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Ancho de lectura interno: el fondo cubre toda la pantalla, pero el
+   contenido no se estira sin límite en monitores grandes. */
+.container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
 }
 
 h1,

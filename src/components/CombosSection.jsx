@@ -42,7 +42,7 @@ export default function CombosSection() {
                     }
                     aria-label={`Agregar ${combo.nombre} al carrito`}
                   >
-                    {cantidad > 0 ? cantidad : '+'}
+                    {cantidad > 0 ? `Agregado (${cantidad})` : 'Agregar'}
                   </button>
                 ) : (
                   <span className="combo-agotado-badge">Agotado</span>

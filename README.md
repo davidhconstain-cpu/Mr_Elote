@@ -33,7 +33,10 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
 - `src/hooks/useCatalog.js` + `src/api/catalogApi.js` — cargan el menú desde
   `GET /api/v1/productos` y agrupan las porciones de cada plato.
 - `src/context/CartContext.jsx` — estado del carrito (agregar, quitar,
-  cambiar cantidad, total).
+  cambiar cantidad, total). **Agregar al carrito exige sesión** en todos los
+  casos, incluso para recoger en el local, para que todo pedido quede
+  asociado a un cliente identificable: si no hay sesión abre el modal de
+  login y guarda el ítem, que entra solo al carrito al autenticarse.
 - `src/context/AuthContext.jsx` + `src/api/authApi.js` — login/registro de
   cliente, sesión (JWT) persistida en `localStorage`.
 - `src/api/clienteApi.js` + `src/api/zonasApi.js` + `src/components/AddressPicker.jsx`
@@ -62,9 +65,15 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
 - `src/api/metodosPagoApi.js` + `src/api/pagosApi.js` — selector de método
   de pago al confirmar (solo cliente autenticado; un pedido anónimo se
   paga en persona).
-- `src/data/products.js` — navegación rápida, y bebidas/adiciones (todavía
-  estáticas, ver más abajo).
-- `src/components/` — Header, QuickNav, ProductSection, PriceRow,
+- `src/components/CategoryFilter.jsx` — barra de categorías con miniatura,
+  fija bajo el header: **filtra** el catálogo (antes eran anclas `#id` que
+  solo hacían scroll). Los chips se arman con el catálogo real, así que un
+  producto nuevo creado desde el panel de administración aparece solo.
+- `src/components/ProductCard.jsx` — tarjeta de producto (foto grande,
+  nombre, descripción y una fila por porción con su botón "Agregar"),
+  dispuestas en una grilla a todo el ancho de la página.
+- `src/data/products.js` — bebidas/adiciones (todavía estáticas, ver abajo).
+- `src/components/` — Header, ProductCard, CategoryFilter, ProductPhoto,
   DrinksSection, AdicionesSection, Footer.
 - `src/CatalogApp.jsx` + `src/staff/` — la app se divide en dos por ruta
   (`src/App.jsx`, `react-router-dom`): `/*` es el catálogo de cliente
@@ -79,7 +88,10 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
 - Precios reales de la sección **Bebidas** (hoy muestra "Consultar").
 - Lista y precios reales de **Adiciones** (en el sitio original solo se veía
   el enlace, no el contenido) — tampoco existen todavía en el backend.
-- Fotos de Desgranado, Salchipapa y Mechada (muestran un placeholder).
+- Fotos de Desgranado, Salchipapa y Mechada (muestran una ilustración
+  genérica de comida callejera dibujada en SVG, no una foto de stock, para
+  no meter imágenes con licencia ajena en el repo; se reemplaza sola al
+  subir la foto real).
   Para agregarlas: colócalas en `public/images/` y súbelas al producto
   correspondiente vía `POST /api/v1/productos/{id}/imagenes`, o agrégalas
   directamente en `backend/src/main/resources/db/migration/V6__seed_menu_mrelote.sql`

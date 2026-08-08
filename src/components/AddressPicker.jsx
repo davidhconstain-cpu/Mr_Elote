@@ -5,7 +5,7 @@ import { fetchZonasDomicilio } from '../api/zonasApi'
 import { formatPrice } from '../utils/formatPrice'
 
 export default function AddressPicker({ value, onChange }) {
-  const { accessToken } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [direcciones, setDirecciones] = useState([])
   const [zonas, setZonas] = useState([])
   const [loading, setLoading] = useState(true)
@@ -16,7 +16,7 @@ export default function AddressPicker({ value, onChange }) {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([listarDirecciones(accessToken), fetchZonasDomicilio()])
+    Promise.all([listarDirecciones(), fetchZonasDomicilio()])
       .then(([dirs, zs]) => {
         if (cancelled) return
         setDirecciones(dirs)
@@ -37,7 +37,7 @@ export default function AddressPicker({ value, onChange }) {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken])
+  }, [isAuthenticated])
 
   function tarifaDeZona(zonaId) {
     return zonas.find((z) => z.id === zonaId)?.tarifaVigente ?? null
@@ -48,7 +48,7 @@ export default function AddressPicker({ value, onChange }) {
     setSaving(true)
     setError(null)
     try {
-      const nueva = await crearDireccion(accessToken, {
+      const nueva = await crearDireccion({
         etiqueta: form.etiqueta || null,
         direccionTexto: form.direccionTexto,
         zonaDomicilioId: form.zonaDomicilioId ? Number(form.zonaDomicilioId) : null,

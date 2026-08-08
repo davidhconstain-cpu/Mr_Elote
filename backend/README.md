@@ -202,6 +202,32 @@ real hasta el punto exacto donde hace falta ese proveedor:
   un `UPDATE ... WHERE usado_en IS NULL` condicional, para que dos
   peticiones simultáneas con el mismo código no puedan ambas entrar.
 
+## Sesión: renovación y token inválido
+
+Dos detalles que estaban rotos y se arreglaron juntos, porque se
+manifestaban como el mismo síntoma ("pedí algo y no me aparece en Mis
+pedidos"):
+
+- El access token dura 30 minutos y **el frontend nunca lo renovaba**
+  (guardaba el refresh token sin usarlo jamás). Pasada media hora la
+  interfaz seguía mostrando la sesión, pero toda llamada devolvía 401.
+  Ahora `../src/api/http.js` centraliza las llamadas autenticadas: ante un
+  401 renueva con el refresh token y reintenta una vez; si el refresh
+  tampoco sirve, cierra la sesión y abre el login, en vez de dejar la
+  interfaz mostrando un usuario que ya no lo está.
+- `JwtAuthenticationFilter` **ignoraba en silencio** un token inválido y
+  dejaba pasar la petición como anónima. En las rutas de auth opcional
+  (POST /pedidos) eso hacía que el pedido se creara con `cliente_id` NULL:
+  el cliente veía "¡Pedido recibido!" pero el pedido no era de nadie y
+  nunca le aparecía en su historial. Ahora un header `Bearer` con token
+  inválido responde 401 (ausencia de header sigue siendo anónimo, que es
+  lo correcto).
+
+  El filtro se salta `/api/v1/auth/**` a propósito: son rutas públicas y
+  `/auth/refresh` manda el *refresh* token en ese mismo header, que el
+  filtro rechazaría por no ser un access token — dejando la renovación
+  rota justo cuando hace falta.
+
 ## Registro e inicio de sesión del cliente
 
 El registro público (`POST /auth/registro`) pide tipo y número de
@@ -220,7 +246,7 @@ emitiendo y resolviendo por correo.
 
 ## Tests automatizados
 
-`backend/src/test/java` — 17 tests de integración reales (JUnit 5 +
+`backend/src/test/java` — 19 tests de integración reales (JUnit 5 +
 `@SpringBootTest` con servidor HTTP en un puerto aleatorio), sin mocks:
 auth (registro/login/refresh/recuperar contraseña), catálogo (crear
 producto, disponibilidad, RN-004), el ciclo de vida completo de un pedido

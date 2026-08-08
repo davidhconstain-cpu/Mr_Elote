@@ -23,7 +23,7 @@ function formatFecha(iso) {
 }
 
 export default function MisPedidosPanel({ onClose }) {
-  const { accessToken } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pedidos, setPedidos] = useState([])
@@ -32,7 +32,7 @@ export default function MisPedidosPanel({ onClose }) {
 
   useEffect(() => {
     let cancelled = false
-    misPedidos(accessToken)
+    misPedidos()
       .then((page) => {
         if (cancelled) return
         setPedidos(page.content ?? [])
@@ -46,7 +46,7 @@ export default function MisPedidosPanel({ onClose }) {
     return () => {
       cancelled = true
     }
-  }, [accessToken])
+  }, [isAuthenticated])
 
   function alternarExpandido(pedido) {
     if (expandidoId === pedido.id) {
@@ -55,7 +55,7 @@ export default function MisPedidosPanel({ onClose }) {
     }
     setExpandidoId(pedido.id)
     if (!historial[pedido.id]) {
-      historialPedido(accessToken, pedido.id)
+      historialPedido(pedido.id)
         .then((data) => setHistorial((prev) => ({ ...prev, [pedido.id]: data })))
         .catch(() => setHistorial((prev) => ({ ...prev, [pedido.id]: [] })))
     }

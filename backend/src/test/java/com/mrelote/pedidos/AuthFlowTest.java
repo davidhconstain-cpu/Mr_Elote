@@ -75,6 +75,52 @@ class AuthFlowTest extends IntegrationTestBase {
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
+    /**
+     * Un token vencido o corrupto no debe degradarse a "anónimo": antes se
+     * ignoraba en silencio y, en las rutas de auth opcional como POST
+     * /pedidos, el pedido de un cliente con la sesión vencida se creaba sin
+     * cliente_id — el cliente lo daba por hecho y nunca le aparecía en
+     * "Mis pedidos".
+     */
+    @Test
+    void unTokenInvalidoSeRechazaEnVezDeTratarseComoAnonimo() {
+        var headers = new org.springframework.http.HttpHeaders();
+        headers.setBearerAuth("token-que-no-vale-nada");
+
+        ResponseEntity<String> respuesta = rest.exchange(
+                baseUrl() + "/clientes/me/pedidos", org.springframework.http.HttpMethod.GET,
+                new org.springframework.http.HttpEntity<>(headers), String.class);
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        // La ruta de auth opcional tampoco lo acepta como anónimo.
+        ResponseEntity<String> pedido = rest.exchange(
+                baseUrl() + "/pedidos", org.springframework.http.HttpMethod.POST,
+                new org.springframework.http.HttpEntity<>(
+                        java.util.Map.of("tipo", "recoger", "items", java.util.List.of()), headers),
+                String.class);
+        assertThat(pedido.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM pedido", Integer.class)).isZero();
+    }
+
+    /**
+     * /auth/refresh recibe el refresh token en el header Authorization; el
+     * filtro JWT no debe rechazarlo por no ser un access token, o la
+     * renovación de sesión queda rota para siempre.
+     */
+    @Test
+    void elRefreshTokenSirveParaRenovarLaSesion() {
+        var registro = registroDe("Renovable", "renovable@example.com", null, "password123");
+        ResponseEntity<LoginResponse> alta =
+                rest.postForEntity(baseUrl() + "/auth/registro", registro, LoginResponse.class);
+
+        ResponseEntity<LoginResponse> renovado = rest.postForEntity(
+                baseUrl() + "/auth/refresh", conToken(alta.getBody().refreshToken()), LoginResponse.class);
+
+        assertThat(renovado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(renovado.getBody().accessToken()).isNotBlank();
+        assertThat(renovado.getBody().usuario().email()).isEqualTo("renovable@example.com");
+    }
+
     @Test
     void sePuedeIniciarSesionConElNumeroDeDocumento() {
         var registro = registroDe("Con Documento", "condoc@example.com", null, "password123");

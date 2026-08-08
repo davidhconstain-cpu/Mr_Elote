@@ -1,17 +1,13 @@
-import { API_BASE_URL } from './config'
+import { authFetch } from './http'
 
-// tipo: 'recoger' (anónimo), 'domicilio' (requiere cliente autenticado con
-// una dirección propia — ver AddressPicker) o 'local' (requiere el código
-// del QR de la mesa escaneada — ver MesaContext).
-export async function crearPedido({ tipo, direccionId, mesaCodigoQr, items, observaciones, token }) {
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
-
-  const response = await fetch(`${API_BASE_URL}/pedidos`, {
+// tipo: 'recoger', 'domicilio' (requiere una dirección propia del cliente —
+// ver AddressPicker) o 'local' (requiere el código del QR de la mesa
+// escaneada — ver MesaContext). Todos van con la sesión del cliente: armar
+// el carrito ya exige cuenta (ver CartContext), y authFetch renueva el token
+// si venció, para que el pedido no termine creándose sin dueño.
+export function crearPedido({ tipo, direccionId, mesaCodigoQr, items, observaciones }) {
+  return authFetch('/pedidos', {
     method: 'POST',
-    headers,
     body: JSON.stringify({
       tipo,
       direccionId: tipo === 'domicilio' ? direccionId : undefined,
@@ -26,11 +22,4 @@ export async function crearPedido({ tipo, direccionId, mesaCodigoQr, items, obse
       observaciones: observaciones || null,
     }),
   })
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null)
-    throw new Error(body?.mensaje || `No se pudo enviar el pedido (${response.status})`)
-  }
-
-  return response.json()
 }

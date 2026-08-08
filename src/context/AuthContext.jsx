@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { configurarSesionHttp } from '../api/http'
 import {
   login as apiLogin,
   registro as apiRegistro,
@@ -60,6 +61,25 @@ export function AuthProvider({ children }) {
   )
 
   const logout = useCallback(() => persist(null), [persist])
+
+  // El cliente HTTP necesita leer la sesión más reciente sin volver a
+  // registrarse en cada render; una ref evita ese baile de dependencias.
+  const sessionRef = useRef(session)
+  sessionRef.current = session
+
+  useEffect(() => {
+    configurarSesionHttp({
+      obtenerSesion: () => sessionRef.current,
+      // Renovación silenciosa: solo cambian los tokens, el usuario sigue igual.
+      onRenovada: (data) => persist({ ...sessionRef.current, ...data }),
+      // Ni el refresh sirvió: se cierra la sesión y se pide entrar de nuevo,
+      // en vez de dejar la interfaz mostrando un usuario que ya no lo está.
+      onExpirada: () => {
+        persist(null)
+        setAuthModalOpen(true)
+      },
+    })
+  }, [persist])
 
   const value = useMemo(
     () => ({

@@ -45,6 +45,12 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   puede usar **el correo o el número de documento**, y elegir entre
   contraseña o un **código de un solo uso**; también está el enlace de
   "¿Olvidaste tu contraseña?".
+- `src/api/http.js` — cliente HTTP de las llamadas autenticadas. El access
+  token vive 30 minutos; ante un 401 lo renueva con el refresh token y
+  reintenta la llamada, y si el refresh tampoco sirve cierra la sesión y
+  abre el login. Antes nadie lo renovaba: pasada media hora la interfaz
+  seguía mostrando "Hola, ..." pero "Mis pedidos" se quedaba vacío y el
+  pedido se creaba sin dueño.
 - `src/api/clienteApi.js` + `src/api/zonasApi.js` + `src/components/AddressPicker.jsx`
   — direcciones del cliente autenticado y zonas de domicilio con su tarifa.
 - `src/context/MesaContext.jsx` + `src/api/mesasApi.js` — resuelve el QR de
@@ -124,7 +130,7 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
 
 Los 15 módulos de la especificación de requisitos están implementados con
 lógica real, verificados de extremo a extremo (curl, Playwright, y una
-suite de 13 tests automatizados — ver `backend/README.md`). Lo único que
+suite de 19 tests automatizados — ver `backend/README.md`). Lo único que
 queda genuinamente bloqueado, no solo pendiente de tiempo, es lo que
 depende de credenciales de un proveedor externo que este entorno no
 tiene: envío real de notificaciones/recuperación de contraseña por

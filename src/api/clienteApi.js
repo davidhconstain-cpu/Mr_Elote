@@ -1,39 +1,27 @@
-import { API_BASE_URL } from './config'
+import { authFetch } from './http'
 
-function authHeaders(token) {
-  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+// El token ya no se pasa por parámetro: authFetch lo toma de la sesión
+// activa y lo renueva solo si venció (ver src/api/http.js).
+
+export function listarDirecciones() {
+  return authFetch('/clientes/me/direcciones')
 }
 
-async function handle(response) {
-  if (!response.ok) {
-    const body = await response.json().catch(() => null)
-    throw new Error(body?.mensaje || `No se pudo completar la solicitud (${response.status})`)
-  }
-  return response.status === 204 ? null : response.json()
-}
-
-export function listarDirecciones(token) {
-  return fetch(`${API_BASE_URL}/clientes/me/direcciones`, { headers: authHeaders(token) }).then(handle)
-}
-
-export function crearDireccion(token, direccion) {
-  return fetch(`${API_BASE_URL}/clientes/me/direcciones`, {
+export function crearDireccion(direccion) {
+  return authFetch('/clientes/me/direcciones', {
     method: 'POST',
-    headers: authHeaders(token),
     body: JSON.stringify(direccion),
-  }).then(handle)
+  })
 }
 
-export function misPedidos(token, page = 0) {
-  return fetch(`${API_BASE_URL}/clientes/me/pedidos?page=${page}&size=10`, {
-    headers: authHeaders(token),
-  }).then(handle)
+export function misPedidos(page = 0) {
+  return authFetch(`/clientes/me/pedidos?page=${page}&size=10`)
 }
 
-export function verPedido(token, id) {
-  return fetch(`${API_BASE_URL}/pedidos/${id}`, { headers: authHeaders(token) }).then(handle)
+export function verPedido(id) {
+  return authFetch(`/pedidos/${id}`)
 }
 
-export function historialPedido(token, id) {
-  return fetch(`${API_BASE_URL}/pedidos/${id}/historial`, { headers: authHeaders(token) }).then(handle)
+export function historialPedido(id) {
+  return authFetch(`/pedidos/${id}/historial`)
 }

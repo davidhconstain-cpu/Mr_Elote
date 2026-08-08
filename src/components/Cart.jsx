@@ -18,7 +18,7 @@ function detalleItem(item) {
 
 export default function Cart() {
   const { items, setQuantity, removeItem, clear, total, count } = useCart()
-  const { isAuthenticated, accessToken, openAuthModal } = useAuth()
+  const { isAuthenticated, openAuthModal } = useAuth()
   const { mesa, codigo: mesaCodigo, loading: mesaLoading } = useMesa()
   const [open, setOpen] = useState(false)
   const [tipo, setTipo] = useState('recoger')
@@ -79,12 +79,11 @@ export default function Cart() {
         mesaCodigoQr: tipo === 'local' ? mesaCodigo : undefined,
         items,
         observaciones,
-        token: accessToken,
       })
 
       if (isAuthenticated && metodoPagoId) {
         try {
-          await registrarPago(accessToken, pedido.id, { metodoPagoId: Number(metodoPagoId), monto: pedido.total })
+          await registrarPago(pedido.id, { metodoPagoId: Number(metodoPagoId), monto: pedido.total })
         } catch (pagoErr) {
           setPagoAviso(`El pedido se creó, pero el pago no quedó registrado: ${pagoErr.message}`)
         }

@@ -6,7 +6,9 @@ fondo negro, tipografía bold, navegación rápida por categorías y precios por
 número de porciones. El menú ya no es texto estático: se carga en vivo desde
 el backend real (`backend/`, Spring Boot), permite armar un carrito, crear
 cuenta / iniciar sesión, y enviar el pedido para recoger, a domicilio o en
-mesa (escaneando el QR de la mesa).
+mesa (escaneando el QR de la mesa). Además, un panel de staff separado
+(`/staff`) cubre cocina, caja, despachos y administración completa del
+negocio.
 
 ## Desarrollo
 
@@ -64,6 +66,12 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   estáticas, ver más abajo).
 - `src/components/` — Header, QuickNav, ProductSection, PriceRow,
   DrinksSection, AdicionesSection, Footer.
+- `src/CatalogApp.jsx` + `src/staff/` — la app se divide en dos por ruta
+  (`src/App.jsx`, `react-router-dom`): `/*` es el catálogo de cliente
+  (`CatalogApp`), `/staff/*` es el panel de staff (login propio que
+  reutiliza `AuthContext`, navegación según el rol). Ver
+  `backend/README.md` → "Panel de staff" para el detalle de cada módulo
+  (Cocina, Caja, Despachos, Administración).
 - `backend/` — API REST en Java/Spring Boot (ver `backend/README.md`).
 
 ## Pendiente por revisar
@@ -90,3 +98,6 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   adicionales, "Combo Callejera + Chicharrón") son de ejemplo, no ofertas
   reales confirmadas — ver `V9__seed_opciones_adicionales_demo.sql` y
   `V10__seed_combo_demo.sql`.
+- Los 5 usuarios de staff (uno por rol) son de demo/desarrollo
+  (`V11__seed_usuarios_staff_demo.sql`, contraseña `password123`) — no
+  crear usuarios reales con esa contraseña en producción.

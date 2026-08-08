@@ -1,0 +1,350 @@
+/* Panel de staff: mismo lenguaje de color que el catálogo, layout de
+   escritorio (sidebar + contenido) en vez del layout centrado a una
+   columna del catálogo público. */
+
+.staff-login {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.staff-login-form {
+  width: min(320px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.staff-login-title {
+  font-family: var(--display);
+  color: var(--white);
+  font-size: 20px;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.staff-shell {
+  min-height: 100svh;
+  display: flex;
+  background: var(--bg);
+}
+
+.staff-nav {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-alt);
+  border-right: 2px solid var(--red);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+}
+
+.staff-nav-brand {
+  font-family: var(--display);
+  color: var(--white);
+  font-size: 15px;
+  letter-spacing: 1px;
+  padding: 0 20px 20px;
+  border-bottom: 1px solid #2a2a2a;
+  margin-bottom: 12px;
+}
+
+.staff-nav nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.staff-nav-link {
+  color: var(--gray);
+  text-decoration: none;
+  padding: 10px 20px;
+  font-size: 14px;
+  border-left: 3px solid transparent;
+}
+
+.staff-nav-link:hover {
+  color: var(--white);
+}
+
+.staff-nav-link.active {
+  color: var(--white);
+  border-left-color: var(--red);
+  background: rgba(224, 33, 43, 0.1);
+}
+
+.staff-nav-footer {
+  padding: 12px 20px 0;
+  border-top: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--white);
+}
+
+.staff-nav-role {
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 10px;
+}
+
+.staff-content {
+  flex: 1;
+  padding: 28px 32px;
+  overflow-x: auto;
+  color: var(--white);
+}
+
+.staff-page-title {
+  font-family: var(--display);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 22px;
+  margin-bottom: 20px;
+}
+
+.staff-section {
+  margin-bottom: 32px;
+}
+
+.staff-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray);
+  margin-bottom: 10px;
+}
+
+.staff-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.staff-toolbar select,
+.staff-toolbar input {
+  background: var(--bg-alt);
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+
+.staff-button {
+  background: var(--red);
+  color: var(--white);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.staff-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.staff-button.secondary {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: var(--white);
+}
+
+.staff-button.danger {
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+
+.staff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.staff-table th {
+  text-align: left;
+  color: var(--gray);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.staff-table td {
+  padding: 10px;
+  border-bottom: 1px solid #1c1c1c;
+  vertical-align: top;
+}
+
+.staff-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.staff-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.staff-card {
+  background: var(--bg-alt);
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.staff-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.staff-card-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.staff-card-meta {
+  color: var(--gray);
+  font-size: 12px;
+}
+
+.staff-card-items {
+  list-style: none;
+  font-size: 12px;
+  color: var(--gray);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.staff-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.staff-empty {
+  color: var(--gray);
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.staff-error {
+  color: var(--red);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.staff-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.staff-kpi {
+  background: var(--bg-alt);
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.staff-kpi-label {
+  color: var(--gray);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.staff-kpi-value {
+  font-family: var(--display);
+  font-size: 24px;
+  color: var(--white);
+  margin-top: 4px;
+}
+
+.staff-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 420px;
+  margin-bottom: 20px;
+}
+
+.staff-form input,
+.staff-form select,
+.staff-form textarea {
+  background: var(--bg-alt);
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 9px 10px;
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+
+.staff-form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.staff-form-row > * {
+  flex: 1;
+}
+
+.staff-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.staff-tabs a {
+  color: var(--gray);
+  text-decoration: none;
+  padding: 8px 14px;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+}
+
+.staff-tabs a.active {
+  color: var(--white);
+  border-bottom-color: var(--red);
+}
+
+.staff-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--red);
+  color: var(--red);
+  white-space: nowrap;
+}
+
+.staff-badge.ok {
+  border-color: #2e8b57;
+  color: #4caf76;
+}

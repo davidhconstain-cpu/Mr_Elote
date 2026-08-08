@@ -136,6 +136,34 @@ uno), y elegir método de pago al confirmar — solo para cliente
 autenticado, ya que `POST /pedidos/{id}/pagos` solo lo permite a
 Cliente/Mesero/Caja; un pedido anónimo se paga en persona.
 
+## Panel de staff
+
+Sección aparte del catálogo (`../src/staff/`, rutas bajo `/staff`, usa
+`react-router-dom`), con su propio login (reutiliza `AuthContext` — es la
+misma sesión JWT, cualquier rol puede loguearse ahí) y navegación según el
+rol de la cuenta:
+
+- **Cocina** (`/staff/cocina`): cola de pedidos habilitados, filtrable por
+  tipo, con "iniciar preparación" / "marcar listo".
+- **Caja** (`/staff/caja`): pedidos pendientes de confirmar pago,
+  apertura/movimientos/cierre de caja, y pedidos "listos" para marcar
+  recogidos (recoger) o entregados (local) — domicilio lo maneja
+  Despachos.
+- **Despachos** (`/staff/despachos`): cola de pedidos despachados,
+  asignarse uno, marcar en camino y entregado.
+- **Administración** (`/staff/admin/*`, 11 pestañas): productos
+  (crear/editar/disponibilidad/asignar opciones y adicionales),
+  categorías, combos (crear y definir componentes), opciones y
+  adicionales, usuarios de staff (crear/desactivar), roles (editar
+  permisos finos — `GET /permisos` es nuevo, no existía ningún endpoint
+  para listar los permisos disponibles), zonas y tarifas de domicilio,
+  mesas (crear y regenerar QR), informes/dashboard, auditoría, y
+  configuración general.
+
+No hay ningún usuario de staff sembrado en producción — los 5 usuarios de
+demo (uno por rol, contraseña `password123`) están en
+`V11__seed_usuarios_staff_demo.sql`, pensados solo para desarrollo/pruebas.
+
 ## Qué queda pendiente (siguiente fase)
 
 - Envío real de notificaciones (job/listener asíncrono que tome las
@@ -252,3 +280,38 @@ con `LazyInitializationException` — nunca se había probado esta ruta con
 una petición HTTP real hasta esta ronda. Corregido con
 `@Transactional(readOnly = true)`, igual que los demás casos ya conocidos
 de este mismo patrón.
+
+**Ronda 8 — panel de staff completo (Cocina, Caja, Despachos,
+Administración)**: base de datos recreada desde cero → Flyway aplica las
+11 migraciones (incluidos 5 usuarios de staff de demo, uno por rol) →
+flujo de negocio real encadenado con Playwright a través de los cuatro
+roles: cliente anónimo pide para recoger → Caja confirma el pago → Cocina
+inicia preparación y marca listo → Caja marca recogido; por separado, un
+pedido a domicilio se lleva hasta despachado y Despachos lo asigna, marca
+en camino y entregado. Se recorrieron las 11 pestañas de Administración y
+se probaron acciones de escritura reales en la mayoría (crear producto,
+marcar agotado, asignar/quitar opción y adicional, crear combo y
+agregarle un componente, crear categoría, crear mesa y regenerar su QR,
+crear usuario de staff y desactivarlo, editar permisos de un rol, crear
+zona de domicilio y actualizar su tarifa). Todo verificado contra
+Postgres, no solo contra la respuesta HTTP.
+
+Esta ronda encontró y corrigió tres bugs reales:
+- El índice de `/staff` redirigía siempre a Cocina sin importar el rol
+  del usuario logueado, así que Caja/Despachos/Administrador aterrizaban
+  en una pantalla sin permiso (403) en vez de su propio módulo. Corregido
+  calculando el primer módulo visible según el rol real.
+- `POST /informes/ventas` — el frontend mandaba `agrupar=day/week/month`
+  (inglés); el backend solo acepta `'dia'|'semana'|'mes'` (español).
+  Corregido el `<select>` del panel de Informes.
+- `POST /zonas-domicilio` — el formulario de crear zona solo mandaba
+  `nombre`, pero `ZonaDomicilioRequest.tarifa` es `@NotNull`: crea la
+  zona y su primera tarifa en la misma operación. El backend devolvía
+  422 y la zona nunca se creaba. Corregido agregando los campos de
+  tarifa inicial y tiempo estimado al formulario.
+
+También se confirmó, comparando con el estado real en Postgres, que dos
+resultados "en false" durante las pruebas fueron falsos negativos del
+script de prueba (tiempo de espera insuficiente antes de leer el DOM
+recién re-renderizado), no bugs de la aplicación — se repitieron con más
+espera y el estado en base de datos ya era correcto desde la primera vez.

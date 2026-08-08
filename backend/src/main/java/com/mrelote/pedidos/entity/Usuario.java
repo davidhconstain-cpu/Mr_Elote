@@ -25,10 +25,27 @@ public class Usuario {
     @Column(nullable = false)
     private String nombre;
 
+    private String apellidos;
+
+    @Column(name = "tipo_documento")
+    private String tipoDocumento;
+
+    /** Único entre quienes lo tienen; el staff sembrado queda en NULL. */
+    @Column(name = "numero_documento")
+    private String numeroDocumento;
+
     @Column(unique = true)
     private String email;
 
     private String telefono;
+
+    @Column(name = "acepta_promociones")
+    @Builder.Default
+    private Boolean aceptaPromociones = false;
+
+    /** Cuándo aceptó términos y condiciones (queda como evidencia). */
+    @Column(name = "terminos_aceptados_en")
+    private OffsetDateTime terminosAceptadosEn;
 
     @Column(name = "password_hash")
     private String passwordHash;

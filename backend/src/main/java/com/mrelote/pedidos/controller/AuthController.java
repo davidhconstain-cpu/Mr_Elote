@@ -1,14 +1,17 @@
 package com.mrelote.pedidos.controller;
 
 import com.mrelote.pedidos.dto.request.ConfirmarResetRequest;
+import com.mrelote.pedidos.dto.request.LoginCodigoRequest;
 import com.mrelote.pedidos.dto.request.LoginRequest;
 import com.mrelote.pedidos.dto.request.RegistroClienteRequest;
+import com.mrelote.pedidos.dto.request.SolicitarCodigoRequest;
 import com.mrelote.pedidos.dto.request.SolicitarResetRequest;
 import com.mrelote.pedidos.dto.response.LoginResponse;
 import com.mrelote.pedidos.security.JwtService;
 import com.mrelote.pedidos.security.UsuarioDetailsService;
 import com.mrelote.pedidos.security.UsuarioPrincipal;
 import com.mrelote.pedidos.service.AuthService;
+import com.mrelote.pedidos.service.CodigoAccesoService;
 import com.mrelote.pedidos.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final UsuarioDetailsService usuarioDetailsService;
     private final PasswordResetService passwordResetService;
+    private final CodigoAccesoService codigoAccesoService;
 
     @PostMapping("/registro")
     public ResponseEntity<LoginResponse> registro(@Valid @RequestBody RegistroClienteRequest request) {
@@ -67,5 +71,21 @@ public class AuthController {
     public ResponseEntity<Void> confirmarRecuperacion(@Valid @RequestBody ConfirmarResetRequest request) {
         passwordResetService.confirmar(request.token(), request.nuevaPassword());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Igual que /recuperar: siempre 202, exista o no la cuenta, para no
+     * filtrar qué correos/documentos están registrados.
+     */
+    @PostMapping("/codigo")
+    public ResponseEntity<Void> solicitarCodigo(@Valid @RequestBody SolicitarCodigoRequest request) {
+        codigoAccesoService.solicitar(request.identificador());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+    }
+
+    @PostMapping("/codigo/login")
+    public LoginResponse loginConCodigo(@Valid @RequestBody LoginCodigoRequest request) {
+        return authService.loginConCodigo(
+                codigoAccesoService.validar(request.identificador(), request.codigo()));
     }
 }

@@ -21,6 +21,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -37,15 +39,24 @@ public class AuthService {
         if (usuarioRepository.existsByEmail(request.email())) {
             throw new ConflictException("Ya existe una cuenta con ese email.");
         }
+        if (usuarioRepository.existsByNumeroDocumento(request.numeroDocumento())) {
+            throw new ConflictException("Ya existe una cuenta con ese número de documento.");
+        }
         Rol rolCliente = rolRepository.findByNombre(RoleNames.CLIENTE)
                 .orElseThrow(() -> new IllegalStateException("El rol Cliente no está sembrado en la base de datos"));
 
         Usuario usuario = Usuario.builder()
                 .rol(rolCliente)
+                .tipoDocumento(request.tipoDocumento())
+                .numeroDocumento(request.numeroDocumento())
                 .nombre(request.nombre())
+                .apellidos(request.apellidos())
                 .email(request.email())
                 .telefono(request.telefono())
                 .passwordHash(passwordEncoder.encode(request.password()))
+                .aceptaPromociones(Boolean.TRUE.equals(request.aceptaPromociones()))
+                // La validación @AssertTrue del request ya garantiza que aceptó.
+                .terminosAceptadosEn(OffsetDateTime.now())
                 .activo(true)
                 .build();
         // saveAndFlush (no solo save): con GenerationType.IDENTITY en Usuario,
@@ -62,9 +73,14 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest request) {
         var authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password()));
+                new UsernamePasswordAuthenticationToken(request.identificador(), request.password()));
         UsuarioPrincipal principal = (UsuarioPrincipal) authentication.getPrincipal();
         return emitirTokens(principal);
+    }
+
+    /** Inicio de sesión con código de un solo uso, sin contraseña. */
+    public LoginResponse loginConCodigo(Usuario usuario) {
+        return emitirTokens(new UsuarioPrincipal(usuario));
     }
 
     public LoginResponse refrescar(UsuarioPrincipal principal) {

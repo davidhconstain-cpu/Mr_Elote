@@ -1,5 +1,9 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import { login as apiLogin, registro as apiRegistro } from '../api/authApi'
+import {
+  login as apiLogin,
+  registro as apiRegistro,
+  loginConCodigo as apiLoginConCodigo,
+} from '../api/authApi'
 import AuthModal from '../components/AuthModal'
 
 const STORAGE_KEY = 'mrelote.auth'
@@ -27,9 +31,19 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  /** `identificador` puede ser el correo o el número de documento. */
   const login = useCallback(
-    async (email, password) => {
-      const data = await apiLogin(email, password)
+    async (identificador, password) => {
+      const data = await apiLogin(identificador, password)
+      persist(data)
+      setAuthModalOpen(false)
+    },
+    [persist],
+  )
+
+  const loginConCodigo = useCallback(
+    async (identificador, codigo) => {
+      const data = await apiLoginConCodigo(identificador, codigo)
       persist(data)
       setAuthModalOpen(false)
     },
@@ -53,13 +67,14 @@ export function AuthProvider({ children }) {
       accessToken: session?.accessToken ?? null,
       isAuthenticated: Boolean(session?.accessToken),
       login,
+      loginConCodigo,
       registro,
       logout,
       authModalOpen,
       openAuthModal: () => setAuthModalOpen(true),
       closeAuthModal: () => setAuthModalOpen(false),
     }),
-    [session, login, registro, logout, authModalOpen],
+    [session, login, loginConCodigo, registro, logout, authModalOpen],
   )
 
   return (

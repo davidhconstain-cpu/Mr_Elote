@@ -186,10 +186,41 @@ real hasta el punto exacto donde hace falta ese proveedor:
   contraseña. Responde 202 exista o no el email, para no permitir
   enumeración de cuentas. Lo único que falta es el transporte real del
   link (por ahora se loguea, igual que las notificaciones).
+- **Código de acceso de un solo uso** (`CodigoAccesoService`), la
+  alternativa a la contraseña que ofrece el formulario de login:
+  `POST /auth/codigo` genera 6 dígitos con `SecureRandom`, guarda solo su
+  hash SHA-256 y expira a los 10 minutos; `POST /auth/codigo/login` lo
+  valida y emite los tokens. Responde 202 exista o no la cuenta, igual que
+  la recuperación.
+
+  Dos detalles que no son obvios y están así a propósito:
+  `CodigoAccesoService.validar` **no** lleva `@Transactional` — los caminos
+  de fallo lanzan excepción, y si el incremento del contador de intentos
+  viviera dentro de esa transacción el rollback lo descartaría, dejando el
+  límite de 5 intentos sin efecto (verificado: sin el arreglo el contador
+  se quedaba en 0 tras seis intentos fallidos). Y el consumo del código es
+  un `UPDATE ... WHERE usado_en IS NULL` condicional, para que dos
+  peticiones simultáneas con el mismo código no puedan ambas entrar.
+
+## Registro e inicio de sesión del cliente
+
+El registro público (`POST /auth/registro`) pide tipo y número de
+documento, nombres, apellidos, correo con confirmación, teléfono
+opcional, contraseña con confirmación y los consentimientos. Las
+confirmaciones y la aceptación de términos se validan con `@AssertTrue`
+en `RegistroClienteRequest`, no solo en el navegador: el endpoint es
+público y cualquiera puede llamarlo directo. El número de documento es
+único entre quienes lo tienen (índice único parcial en `V13`, para que
+los usuarios de staff sembrados puedan quedar en NULL).
+
+Para entrar, `LoginRequest.identificador` acepta el correo **o** el
+número de documento — `UsuarioDetailsService` los resuelve con
+`UsuarioRepository.findByIdentificador`. Los tokens JWT se siguen
+emitiendo y resolviendo por correo.
 
 ## Tests automatizados
 
-`backend/src/test/java` — 13 tests de integración reales (JUnit 5 +
+`backend/src/test/java` — 17 tests de integración reales (JUnit 5 +
 `@SpringBootTest` con servidor HTTP en un puerto aleatorio), sin mocks:
 auth (registro/login/refresh/recuperar contraseña), catálogo (crear
 producto, disponibilidad, RN-004), el ciclo de vida completo de un pedido

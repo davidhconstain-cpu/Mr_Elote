@@ -13,10 +13,16 @@ public class UsuarioDetailsService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
 
+    /**
+     * El identificador puede ser el correo o el número de documento: el
+     * cliente elige con cuál entrar (ver LoginRequest). Los tokens JWT
+     * siguen emitiéndose y resolviéndose por correo.
+     */
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        return usuarioRepository.findByEmail(email)
+    public UserDetails loadUserByUsername(String identificador) throws UsernameNotFoundException {
+        return usuarioRepository.findByIdentificador(identificador)
                 .map(UsuarioPrincipal::new)
-                .orElseThrow(() -> new UsernameNotFoundException("No existe un usuario con ese email"));
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "No existe un usuario con ese correo o número de documento"));
     }
 }

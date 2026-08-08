@@ -751,59 +751,214 @@
 }
 
 .auth-modal {
-  width: min(360px, 100%);
+  width: min(400px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
   background: var(--bg-alt);
   border: 1px solid var(--red);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+/* El registro lleva el doble de campos: se muestra en dos columnas. */
+.auth-modal-ancho {
+  width: min(680px, 100%);
+}
+
 .auth-modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 
-.auth-tabs {
-  display: flex;
-  gap: 4px;
-}
-
-.auth-tabs button {
-  background: none;
-  border: none;
-  color: var(--gray);
+.auth-title {
   font-family: var(--display);
+  font-size: 26px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  font-size: 13px;
-  padding: 6px 10px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
+  color: var(--red);
+  margin: 0;
 }
 
-.auth-tabs button.active {
-  color: var(--white);
-  border-bottom-color: var(--red);
+.auth-subtitulo {
+  margin: -6px 0 0;
+  color: var(--gray);
+  font-size: 13px;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.auth-form input {
+.auth-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 600px) {
+  .auth-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.auth-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.auth-form input,
+.auth-form select {
+  width: 100%;
   background: var(--bg);
   border: 1px solid #2a2a2a;
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: 999px;
+  padding: 11px 16px;
   color: var(--white);
   font-family: var(--sans);
   font-size: 13px;
+}
+
+.auth-form input:focus,
+.auth-form select:focus {
+  outline: none;
+  border-color: var(--red);
+}
+
+/* Contraseña con el ojito para mostrar/ocultar */
+.auth-password-field {
+  position: relative;
+  display: flex;
+}
+
+.auth-password-field input {
+  padding-right: 44px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 6px;
+}
+
+.auth-pregunta {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+/* Contraseña vs. código, como las dos mitades de una misma píldora */
+.auth-metodo-toggle {
+  display: flex;
+  border: 1px solid var(--red);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.auth-metodo-toggle button {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  color: var(--gray);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 9px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.auth-metodo-toggle button.active {
+  background: var(--red);
+  color: var(--white);
+}
+
+.auth-link {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px;
+  text-align: center;
+}
+
+.auth-link:disabled {
+  color: #6b6b6b;
+  cursor: not-allowed;
+}
+
+.auth-aviso {
+  margin: 0;
+  color: var(--gray);
+  font-size: 12.5px;
+  text-align: center;
+  background: rgba(224, 33, 43, 0.1);
+  border: 1px solid rgba(224, 33, 43, 0.35);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.auth-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--gray);
+  line-height: 1.4;
+}
+
+.auth-check input {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 1px;
+  accent-color: var(--red);
+}
+
+.auth-secondary-button {
+  background: none;
+  border: 1px solid var(--red);
+  border-radius: 999px;
+  color: var(--red);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 11px 16px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.auth-secondary-button:hover,
+.auth-secondary-button:focus-visible {
+  background: var(--red);
+  color: var(--white);
 }
 
 /* Combos */

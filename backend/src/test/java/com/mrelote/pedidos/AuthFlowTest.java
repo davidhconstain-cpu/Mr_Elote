@@ -13,7 +13,7 @@ class AuthFlowTest extends IntegrationTestBase {
 
     @Test
     void registroLoginYRefreshFuncionan() {
-        var registro = new RegistroClienteRequest("Ana Cliente", "ana@example.com", "3000000000", "password123");
+        var registro = registroDe("Ana Cliente", "ana@example.com", "3000000000", "password123");
         ResponseEntity<LoginResponse> respuestaRegistro =
                 rest.postForEntity(baseUrl() + "/auth/registro", registro, LoginResponse.class);
 
@@ -43,7 +43,7 @@ class AuthFlowTest extends IntegrationTestBase {
 
     @Test
     void noSePuedeRegistrarDosVecesConElMismoEmail() {
-        var registro = new RegistroClienteRequest("Ana Cliente", "duplicado@example.com", null, "password123");
+        var registro = registroDe("Ana Cliente", "duplicado@example.com", null, "password123");
         rest.postForEntity(baseUrl() + "/auth/registro", registro, LoginResponse.class);
 
         ResponseEntity<String> segundaVez =
@@ -53,7 +53,7 @@ class AuthFlowTest extends IntegrationTestBase {
 
     @Test
     void recuperarContrasenaSiempreResponde202SinRevelarSiElEmailExiste() {
-        var registro = new RegistroClienteRequest("Con Cuenta", "concuenta@example.com", null, "password123");
+        var registro = registroDe("Con Cuenta", "concuenta@example.com", null, "password123");
         rest.postForEntity(baseUrl() + "/auth/registro", registro, LoginResponse.class);
 
         ResponseEntity<Void> conCuenta = rest.postForEntity(
@@ -73,5 +73,86 @@ class AuthFlowTest extends IntegrationTestBase {
                 java.util.Map.of("token", "token-que-no-existe", "nuevaPassword", "nuevaPassword123"),
                 String.class);
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @Test
+    void sePuedeIniciarSesionConElNumeroDeDocumento() {
+        var registro = registroDe("Con Documento", "condoc@example.com", null, "password123");
+        rest.postForEntity(baseUrl() + "/auth/registro", registro, LoginResponse.class);
+
+        // Mismo usuario, mismo password, pero identificándose con el documento.
+        ResponseEntity<LoginResponse> respuesta = rest.postForEntity(
+                baseUrl() + "/auth/login",
+                new LoginRequest(registro.numeroDocumento(), "password123"),
+                LoginResponse.class);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody().usuario().email()).isEqualTo("condoc@example.com");
+    }
+
+    @Test
+    void elRegistroRechazaCorreoYContrasenaSinConfirmar() {
+        var correosDistintos = new RegistroClienteRequest(
+                "CC", "111222333", "Nombre", "Apellido",
+                "uno@example.com", "otro@example.com", null,
+                "password123", "password123", false, true);
+        assertThat(rest.postForEntity(baseUrl() + "/auth/registro", correosDistintos, String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+
+        var passwordsDistintas = new RegistroClienteRequest(
+                "CC", "111222334", "Nombre", "Apellido",
+                "dos@example.com", "dos@example.com", null,
+                "password123", "password456", false, true);
+        assertThat(rest.postForEntity(baseUrl() + "/auth/registro", passwordsDistintas, String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+
+        var sinAceptarTerminos = new RegistroClienteRequest(
+                "CC", "111222335", "Nombre", "Apellido",
+                "tres@example.com", "tres@example.com", null,
+                "password123", "password123", false, false);
+        assertThat(rest.postForEntity(baseUrl() + "/auth/registro", sinAceptarTerminos, String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM usuario", Integer.class)).isZero();
+    }
+
+    @Test
+    void noSePuedeRegistrarDosVecesConElMismoDocumento() {
+        var primero = registroDe("Primero", "primero@example.com", null, "password123");
+        rest.postForEntity(baseUrl() + "/auth/registro", primero, LoginResponse.class);
+
+        var segundo = new RegistroClienteRequest(
+                "CC", primero.numeroDocumento(), "Segundo", "Apellido",
+                "segundo@example.com", "segundo@example.com", null,
+                "password123", "password123", false, true);
+
+        assertThat(rest.postForEntity(baseUrl() + "/auth/registro", segundo, String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void solicitarCodigoNoRevelaSiLaCuentaExisteYElCodigoEsDeUnSoloUso() {
+        var registro = registroDe("Con Codigo", "concodigo@example.com", null, "password123");
+        rest.postForEntity(baseUrl() + "/auth/registro", registro, LoginResponse.class);
+
+        ResponseEntity<Void> conCuenta = rest.postForEntity(
+                baseUrl() + "/auth/codigo",
+                java.util.Map.of("identificador", "concodigo@example.com"), Void.class);
+        ResponseEntity<Void> sinCuenta = rest.postForEntity(
+                baseUrl() + "/auth/codigo",
+                java.util.Map.of("identificador", "noexiste@example.com"), Void.class);
+
+        assertThat(conCuenta.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(sinCuenta.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        // Solo se generó código para la cuenta que sí existe.
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM codigo_acceso", Integer.class)).isEqualTo(1);
+
+        // El código viaja por el canal de notificaciones, no por la respuesta
+        // HTTP, así que un código inventado no puede servir para entrar.
+        assertThat(rest.postForEntity(baseUrl() + "/auth/codigo/login",
+                java.util.Map.of("identificador", "concodigo@example.com", "codigo", "000000"),
+                String.class).getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT intentos FROM codigo_acceso", Integer.class)).isEqualTo(1);
     }
 }

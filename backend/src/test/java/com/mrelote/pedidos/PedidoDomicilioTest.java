@@ -27,7 +27,7 @@ class PedidoDomicilioTest extends IntegrationTestBase {
         assertThat(zona.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         // Cliente propio (no admin) para poder crear dirección y pedido a domicilio.
-        var registro = new RegistroClienteRequest("Cliente Domicilio", "clientedom@example.com", null, "password123");
+        var registro = registroDe("Cliente Domicilio", "clientedom@example.com", null, "password123");
         LoginResponse cliente = rest.postForEntity(baseUrl() + "/auth/registro", registro, LoginResponse.class).getBody();
         String tokenCliente = cliente.accessToken();
 

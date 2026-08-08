@@ -37,8 +37,14 @@ El frontend apunta por defecto a `http://localhost:8080/api/v1`
   casos, incluso para recoger en el local, para que todo pedido quede
   asociado a un cliente identificable: si no hay sesión abre el modal de
   login y guarda el ítem, que entra solo al carrito al autenticarse.
-- `src/context/AuthContext.jsx` + `src/api/authApi.js` — login/registro de
-  cliente, sesión (JWT) persistida en `localStorage`.
+- `src/context/AuthContext.jsx` + `src/api/authApi.js` + `src/components/AuthModal.jsx`
+  — login/registro de cliente, sesión (JWT) persistida en `localStorage`.
+  El registro pide tipo y número de documento, nombres, apellidos, correo
+  (con confirmación), teléfono opcional, contraseña (con confirmación) y los
+  consentimientos de promociones y de términos y condiciones. Para entrar se
+  puede usar **el correo o el número de documento**, y elegir entre
+  contraseña o un **código de un solo uso**; también está el enlace de
+  "¿Olvidaste tu contraseña?".
 - `src/api/clienteApi.js` + `src/api/zonasApi.js` + `src/components/AddressPicker.jsx`
   — direcciones del cliente autenticado y zonas de domicilio con su tarifa.
 - `src/context/MesaContext.jsx` + `src/api/mesasApi.js` — resuelve el QR de

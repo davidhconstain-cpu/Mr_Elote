@@ -103,6 +103,20 @@ public abstract class IntegrationTestBase {
         return crearUsuarioStaff("Admin Test", email, RoleNames.ADMINISTRADOR);
     }
 
+    /**
+     * Registro de cliente con todos los campos obligatorios ya llenos y
+     * coherentes (correo/contraseña confirmados, términos aceptados), para
+     * que cada test solo declare lo que le importa. El documento se deriva
+     * del email para que no choque con el índice único entre tests.
+     */
+    protected com.mrelote.pedidos.dto.request.RegistroClienteRequest registroDe(
+            String nombre, String email, String telefono, String password) {
+        String documento = String.valueOf(Math.abs(email.hashCode()));
+        return new com.mrelote.pedidos.dto.request.RegistroClienteRequest(
+                "CC", documento, nombre, "Apellido Test", email, email,
+                telefono, password, password, false, true);
+    }
+
     protected HttpEntity<Void> conToken(String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);

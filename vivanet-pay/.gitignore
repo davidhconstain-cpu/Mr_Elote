@@ -3,5 +3,3 @@ target-*/
 *.db
 *.db-wal
 *.db-shm
-client_secret*.json
-credentials*.json

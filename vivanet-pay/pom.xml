@@ -130,7 +130,7 @@
           <release>21</release>
           <encoding>UTF-8</encoding>
           <compilerArgs>
-            <arg>-Xlint:all,-processing,-serial</arg>
+            <arg>-Xlint:all,-processing,-serial,-try</arg>
           </compilerArgs>
         </configuration>
       </plugin>

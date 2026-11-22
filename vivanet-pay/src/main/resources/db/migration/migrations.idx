@@ -1,0 +1,2 @@
+# Índice ordenado de migraciones (una por línea). Añadir V2__xxx.sql, V3__... al final; nunca editar una ya aplicada.
+V1__init.sql

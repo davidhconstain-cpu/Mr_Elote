@@ -27,7 +27,7 @@ public final class Redactor {
     private static final Pattern JWT = Pattern.compile("\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]*");
     private static final Pattern LONG_KEY = Pattern.compile("\\b[A-Za-z0-9_+/=]{40,}\\b");
     private static final Pattern EMAIL = Pattern.compile("([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})");
-    private static final Pattern LONG_NUMBER = Pattern.compile("(?<![\\d.])\\d{4,}(\\d{4})(?![\\d])");
+    private static final Pattern LONG_NUMBER = Pattern.compile("(?<![\\dA-Za-z.\\-])\\d{4,}(\\d{4})(?![\\dA-Za-z\\-])");
 
 
     private Redactor() {

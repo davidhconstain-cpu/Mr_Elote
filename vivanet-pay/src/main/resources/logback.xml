@@ -6,8 +6,8 @@
   %rmsg  = mensaje redactado; %rex = excepción redactada; %X{cid} = correlationId.
 -->
 <configuration scan="false">
-  <conversionRule conversionWord="rmsg" converterClass="com.vivanetpay.observability.RedactingMessageConverter"/>
-  <conversionRule conversionWord="rex" converterClass="com.vivanetpay.observability.RedactingThrowableConverter"/>
+  <conversionRule conversionWord="rmsg" class="com.vivanetpay.observability.RedactingMessageConverter"/>
+  <conversionRule conversionWord="rex" class="com.vivanetpay.observability.RedactingThrowableConverter"/>
 
   <property name="LOG_DIR" value="${vivanet.log.dir:-${user.home}/.vivanetpay/logs}"/>
   <property name="LOG_LEVEL" value="${vivanet.log.level:-INFO}"/>

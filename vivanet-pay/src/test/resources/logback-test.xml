@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-  <conversionRule conversionWord="rmsg" converterClass="com.vivanetpay.observability.RedactingMessageConverter"/>
-  <conversionRule conversionWord="rex" converterClass="com.vivanetpay.observability.RedactingThrowableConverter"/>
+  <conversionRule conversionWord="rmsg" class="com.vivanetpay.observability.RedactingMessageConverter"/>
+  <conversionRule conversionWord="rex" class="com.vivanetpay.observability.RedactingThrowableConverter"/>
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
+      <charset>UTF-8</charset>
       <pattern>%d{HH:mm:ss.SSS} %-5level [cid=%X{cid:-}] %logger{20} - %rmsg%n%rex</pattern>
     </encoder>
   </appender>

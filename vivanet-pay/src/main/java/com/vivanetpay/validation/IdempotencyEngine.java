@@ -21,6 +21,12 @@ public final class IdempotencyEngine {
     private final IdempotencyLookup lookup;
     private final Duration similarityWindow;
 
+    /** Motor sin lookup fijo: usar {@link #evaluate(EventCandidate, IdempotencyLookup)}. */
+    public IdempotencyEngine(Duration similarityWindow) {
+        this.lookup = null;
+        this.similarityWindow = Objects.requireNonNull(similarityWindow, "similarityWindow");
+    }
+
     public IdempotencyEngine(IdempotencyLookup lookup) {
         this(lookup, DEFAULT_SIMILARITY_WINDOW);
     }
@@ -28,6 +34,10 @@ public final class IdempotencyEngine {
     public IdempotencyEngine(IdempotencyLookup lookup, Duration similarityWindow) {
         this.lookup = Objects.requireNonNull(lookup, "lookup");
         this.similarityWindow = Objects.requireNonNull(similarityWindow, "similarityWindow");
+    }
+
+    public Duration similarityWindow() {
+        return similarityWindow;
     }
 
     /** Clave de idempotencia de un candidato. */
@@ -38,7 +48,19 @@ public final class IdempotencyEngine {
         return "fp:" + fingerprint;
     }
 
+    /** Evalúa con el lookup del constructor. */
     public IdempotencyDecision evaluate(EventCandidate c) {
+        if (lookup == null) {
+            throw new IllegalStateException("Motor creado sin lookup; use evaluate(candidate, lookup)");
+        }
+        return evaluate(c, lookup);
+    }
+
+    /**
+     * Evalúa con un lookup explícito (p. ej. ligado a la conexión de la transacción SQL en curso, para que
+     * la decisión y la inserción sean atómicas).
+     */
+    public IdempotencyDecision evaluate(EventCandidate c, IdempotencyLookup lookup) {
         String fp = Fingerprint.of(c);
         String key = idempotencyKey(c, fp);
 

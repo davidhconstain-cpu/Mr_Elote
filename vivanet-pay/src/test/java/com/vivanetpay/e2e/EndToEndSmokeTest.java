@@ -56,7 +56,7 @@ class EndToEndSmokeTest {
     /** Arranque completo (Bootstrap) sin conectores por SPI; el Android real se registra con puerto efímero. */
     private void boot(String authMode) {
         speech = new LoggingSpeechEngine();
-        AppConfig config = AppConfig.of(dir, Map.of("backup.onStart", "false"));
+        AppConfig config = AppConfig.of(dir, Map.of("backup.onStart", "false", "connectors.enabled", "none"));
         Bootstrap.Result r = Bootstrap.start(AppContext.builder(config).clock(Clock.systemUTC()).speechEngine(speech));
         ctx = r.context();
         assertThat(r.databaseHealthy()).isTrue();

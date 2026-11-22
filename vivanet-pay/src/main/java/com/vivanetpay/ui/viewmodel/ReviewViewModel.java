@@ -29,6 +29,19 @@ public final class ReviewViewModel {
         return reason.trim();
     }
 
+    /** El evento está marcado como posible duplicado de otro (CP-014): la UI ofrece "Descartar como duplicado". */
+    public static boolean isPossibleDuplicate(ReviewItem item) {
+        return item.row().possibleDuplicateOfEventId() != null;
+    }
+
+    /** @return el motivo recortado; lanza si es vacío (confirmar un posible duplicado como pago distinto lo exige). */
+    public static String requireDistinctPaymentReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Debes escribir por qué es un pago distinto para confirmarlo.");
+        }
+        return reason.trim();
+    }
+
     /** Si el evento no tiene importe no puede confirmarse (DP-12). */
     public static boolean canValidate(ReviewItem item) {
         return item.row().amount() != null;

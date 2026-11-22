@@ -69,11 +69,11 @@ Los secretos (tokens de Gmail, secreto del receptor Android, contraseña del key
 
 ## Configuración (`config.properties`)
 
-Archivo en el directorio de datos. Las claves no secretas se leen en `app/AppConfig.java`, `integration/android/AndroidWebhookConfig.java` e `integration/gmail/GmailSettings.java`. Por defecto, **ningún conector está activo**: hay que habilitarlos con `connectors.enabled`.
+Archivo en el directorio de datos. Las claves no secretas se leen en `app/AppConfig.java`, `integration/android/AndroidWebhookConfig.java` e `integration/gmail/GmailSettings.java`. Por defecto arrancan **Gmail y Android**: Gmail sin credenciales queda en "Requiere autorización" (no usa la red) y el receptor Android escucha solo en `127.0.0.1`. Para desactivarlos use `connectors.enabled=none`.
 
 | Clave | Por defecto | Descripción |
 |---|---|---|
-| `connectors.enabled` | (vacío) | Conectores a arrancar: `gmail`, `android` o ambos separados por coma. |
+| `connectors.enabled` | `gmail,android` | Conectores a arrancar: `gmail`, `android` o ambos separados por coma; `none` no arranca ninguno. |
 | `policy.automaticValidation` | `false` | Permite confirmar automáticamente según la política (DP-01). |
 | `policy.trustedSources` | (vacío) | Fuentes de confianza para la validación automática (p. ej. `ANDROID_NEQUI`). |
 | `policy.minConfidence` | `0.9` | Confianza mínima del parser; por debajo, el evento va a revisión. |

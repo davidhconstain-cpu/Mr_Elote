@@ -90,4 +90,60 @@ class ReviewServiceTest {
         assertThatThrownBy(() -> app.ctx.reviewService().validate(dup, "", null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    /** R-04 / CP-014: Android confirmado + Gmail del mismo pago enlazado como posible duplicado. */
+    private long[] parGmailAndroid() {
+        long android = app.ctx.ingestionService().ingest(app.nequi("and-9", "Luis te envió $80.000")).eventId();
+        app.clock.advance(Duration.ofMinutes(2));
+        long gmail = app.ctx.ingestionService().ingest(app.gmail("gm-9", "Luis te envió $80.000 (correo)")).eventId();
+        assertThat(app.ctx.eventRepository().findById(gmail).orElseThrow().possibleDuplicateOfEventId()).isEqualTo(android);
+        return new long[]{android, gmail};
+    }
+
+    @Test
+    void noPermiteConfirmarElSegundoDelParPosibleDuplicadoR04() {
+        long[] p = parGmailAndroid();
+        app.ctx.reviewService().validate(p[0], "dueño", "visto en Nequi");
+
+        assertThatThrownBy(() -> app.ctx.reviewService().validate(p[1], "dueño", null))
+                .isInstanceOf(DuplicateConfirmationException.class)
+                .hasMessage("Este pago ya fue confirmado por el evento #" + p[0] + "; descártalo como duplicado");
+        assertThat(app.ctx.eventRepository().findById(p[1]).orElseThrow().status()).isEqualTo(EventStatus.PENDIENTE_REVISION);
+        // un motivo en blanco tampoco vale como override
+        assertThatThrownBy(() -> app.ctx.reviewService().validate(p[1], "dueño", null, "  "))
+                .isInstanceOf(DuplicateConfirmationException.class);
+        assertThat(app.ctx.dashboardService().today().confirmedCount()).isEqualTo(1);
+
+        app.ctx.reviewService().discardAsDuplicate(p[1], "dueño");
+        assertThat(app.ctx.eventRepository().findById(p[1]).orElseThrow().status()).isEqualTo(EventStatus.RECHAZADO);
+        assertThat(app.ctx.auditRepository().findByEntity(AuditEntry.ENTITY_EVENT, Long.toString(p[1])))
+                .anySatisfy(a -> assertThat(a.reason()).contains("duplicado del evento #" + p[0]));
+    }
+
+    @Test
+    void tambienBloqueaEnSentidoInversoSiElPrimeroSeConfirmaDespues() {
+        long[] p = parGmailAndroid();
+        app.ctx.reviewService().validate(p[1], "dueño", null, null); // Gmail apunta a Android; Android aún no confirmado
+        assertThatThrownBy(() -> app.ctx.reviewService().validate(p[0], "dueño", null))
+                .isInstanceOf(DuplicateConfirmationException.class).hasMessageContaining("#" + p[1]);
+    }
+
+    @Test
+    void overrideConMotivoConfirmaYDejaAuditoria() {
+        long[] p = parGmailAndroid();
+        app.ctx.reviewService().validate(p[0], "dueño", null);
+        app.ctx.reviewService().validate(p[1], "dueño", null, "Son dos ventas distintas del mismo cliente");
+
+        assertThat(app.ctx.eventRepository().findById(p[1]).orElseThrow().status().isConfirmed()).isTrue();
+        assertThat(app.ctx.validationRepository().findByEvent(p[1]))
+                .anySatisfy(v -> {
+                    assertThat(v.rule()).isEqualTo(ReviewService.RULE_MANUAL_DISTINCT_PAYMENT);
+                    assertThat(v.reason()).contains("dos ventas distintas");
+                });
+        assertThat(app.ctx.auditRepository().findByEntity(AuditEntry.ENTITY_EVENT, Long.toString(p[1])))
+                .anySatisfy(a -> {
+                    assertThat(a.action()).isEqualTo(AuditEntry.ACTION_DUPLICATE_OVERRIDE);
+                    assertThat(a.reason()).contains("#" + p[0]).contains("dos ventas distintas");
+                });
+    }
 }

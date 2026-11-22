@@ -29,7 +29,7 @@ import java.util.Set;
  * <p>
  * Claves y valores por defecto (los marcados DP-xx son PROVISIONALES):
  * <pre>
- * connectors.enabled=                      (lista: gmail,android)
+ * connectors.enabled=gmail,android        (lista; "none" = ninguno)
  * connector.&lt;tipo&gt;.&lt;clave&gt;=...             (ajustes no secretos del conector)
  * policy.automaticValidation=false         (DP-01)
  * policy.trustedSources=                   (DP-01; p. ej. ANDROID_NEQUI)
@@ -192,11 +192,14 @@ public final class AppConfig {
         return getBoolean("license.enforce", false);
     }
 
-    /** Conectores habilitados ({@code connectors.enabled=gmail,android}). */
+    /** Por defecto arrancan ambos: Gmail sin credenciales queda REQUIERE_AUTORIZACION (sin red) y Android escucha en 127.0.0.1. */
+    public static final String DEFAULT_CONNECTORS = "gmail,android";
+
+    /** Conectores habilitados ({@code connectors.enabled=gmail,android}; {@code none} no arranca ninguno). */
     public List<ConnectorType> enabledConnectors() {
         List<ConnectorType> out = new ArrayList<>();
-        for (String s : get("connectors.enabled", "").split(",")) {
-            if (!s.isBlank()) {
+        for (String s : get("connectors.enabled", DEFAULT_CONNECTORS).split(",")) {
+            if (!s.isBlank() && !s.trim().equalsIgnoreCase("none")) {
                 out.add(ConnectorType.fromConfigKey(s));
             }
         }

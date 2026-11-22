@@ -91,10 +91,11 @@ class BootstrapTest {
     @Test
     void configuracionPorDefectoEsConservadora() {
         AppConfig c = AppConfig.of(dir, Map.of());
+        assertThat(c.enabledConnectors()).extracting(t -> t.configKey()).containsExactly("gmail", "android");
+        assertThat(AppConfig.of(dir, Map.of("connectors.enabled", "none")).enabledConnectors()).isEmpty();
         assertThat(c.policyConfig().automaticValidationEnabled()).isFalse();
         assertThat(c.policyConfig().trustedSources()).isEmpty();
         assertThat(c.voiceSettings().includeSender()).isFalse();
         assertThat(c.licenseEnforce()).isFalse();
-        assertThat(c.enabledConnectors()).isEmpty();
     }
 }

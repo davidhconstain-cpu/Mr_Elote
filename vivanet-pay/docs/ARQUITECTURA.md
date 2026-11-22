@@ -26,10 +26,10 @@ mvn javafx:run                                  # requiere com.vivanetpay.ui.Mai
 | `persistence` | `Database`, `MigrationRunner`, repositorios, `IngestionWriter`, `ReportingQueries`, `DatabaseMaintenance` (backup/restore/integrity) | núcleo |
 | `integration` | `Connector`, `AbstractConnector`, `ConnectorProvider` (SPI), `ConnectorDependencies`, `ConnectorCursorStore`, `ConnectorRegistry` | núcleo |
 | `integration.gmail` | OAuth solo lectura, sincronización incremental, revocación | **agente Gmail/seguridad** |
-| `integration.android` | receptor HTTPS (HMAC + timestamp + nonce, límites) y adaptador MacroDroid | **agente Android** |
+| `integration.android` | receptor webhook (HMAC o token, timestamp, nonce, límites; TLS opcional; por defecto en 127.0.0.1) para MacroDroid | **agente Android** |
 | `voice` | `VoiceService`, `AnnouncementQueue` (1 hilo, sin solapamientos), `SpeechEngine`, `LoggingSpeechEngine`, `AnnouncementMessages` | cola: núcleo; motor Windows: **agente UI/voz** |
-| `security` | `SecretStore`, `InMemorySecretStore` (solo pruebas) | Credential Manager/DPAPI: **agente seguridad** |
-| `reporting` | `DashboardSummary`, `BankBreakdown`, `HistoryFilter`, `HistoryRow` | exportación CSV/Excel: **agente UI/reportes** |
+| `security` | `SecretStore`; `WindowsSecretStore` (DPAPI vía PowerShell, Windows), `FileSecretStore` (archivo con permisos POSIX 600, sin cifrar: solo desarrollo/Linux), `InMemorySecretStore` (pruebas); `SecretStores` elige según el SO | agente seguridad |
+| `reporting` | `DashboardSummary`, `BankBreakdown`, `HistoryFilter`, `HistoryRow`, `CsvExporter` (exportación CSV) | agente UI/reportes |
 | `observability` | `Redactor`, conversores Logback `%rmsg`/`%rex`, `Correlation` (MDC `cid`) | núcleo |
 | `licensing` | `LicenseService` (prueba 14 días, reloj retrocedido ⇒ `SOSPECHOSO`) | núcleo |
 | `app` | `AppConfig`, `AppContext` (composición manual), `Bootstrap`, `HeadlessMain` | núcleo |
@@ -39,7 +39,7 @@ mvn javafx:run                                  # requiere com.vivanetpay.ui.Mai
 
 **Conectores (Gmail, Android)**
 1. Implementar `Connector` (recomendado: extender `AbstractConnector` y usar `updateStatus`/`markSuccess`).
-2. Crear un `ConnectorProvider` y registrarlo en `src/main/resources/META-INF/services/com.vivanetpay.integration.ConnectorProvider`. `Bootstrap` crea los habilitados en `connectors.enabled=gmail,android` y les pasa `ConnectorDependencies` (sink, cursorStore, secretStore, settings `connector.<tipo>.*`, dataDir, clock). Ejemplo funcional: `src/test/java/com/vivanetpay/app/FakeConnectorProvider.java`.
+2. Crear un `ConnectorProvider` y registrarlo en `src/main/resources/META-INF/services/com.vivanetpay.integration.ConnectorProvider`. `Bootstrap` crea los habilitados en `connectors.enabled` (por defecto `gmail,android`; `none` = ninguno) y les pasa `ConnectorDependencies` (sink, cursorStore, secretStore, settings `connector.<tipo>.*`, dataDir, clock). Ejemplo funcional: `src/test/java/com/vivanetpay/app/FakeConnectorProvider.java`.
 3. Construir `RawEvent` (Anexo B) con `externalEventId` siempre que exista (messageId de Gmail, eventId de MacroDroid) y llamar **solo** a `EventSink.ingest(raw)` (bloqueante, fuera del hilo UI). No interpretar importes ni decidir estados.
 4. Avanzar el cursor con `ConnectorCursorStore.commitCursor` **después** de que `ingest` devuelva `isPersisted()`. Reintentar es seguro: la idempotencia evita duplicados.
 5. Sincronizaciones iniciales/de recuperación: marcar `historical(true)` para no anunciarlas.
@@ -63,10 +63,10 @@ mvn javafx:run                                  # requiere com.vivanetpay.ui.Mai
 |---|---|
 | DP-01 | `ConservativeValidationPolicy`: ningún evento automático queda `VALIDADO_POR_FUENTE`. Eventos completos ⇒ `PARSEADO`; dudosos ⇒ `PENDIENTE_REVISION`; ambos se anuncian como "Nueva notificación… Verifica el pago." Solo `ReviewService.validate` (Flujo D) confirma. Activable: `policy.automaticValidation`, `policy.trustedSources` (vacío por defecto). |
 | DP-09 | La voz no dice el remitente (`voice.includeSender=false`); volumen 80, velocidad 0. |
-| DP-12 | Revisión exige solo actor no vacío y motivo para descartar; no se corrigen importes; un evento sin importe no puede confirmarse. |
+| DP-12 | Revisión exige actor no vacío y motivo para descartar; no se corrigen importes; un evento sin importe no puede confirmarse; un posible duplicado de un evento ya confirmado no se confirma sin motivo explícito de "pago distinto" (R-04). |
 | DP-07 | Licencia local de 14 días; reloj retrocedido > 10 min ⇒ `SOSPECHOSO` persistente. Sin validación en línea. `license.enforce=false`: solo informa. |
 | DP-05/DP-10 | Respaldo al iniciar (`backup.onStart=true`) en el mismo disco, sin retención automática; logs: 10 MB/archivo, 30 días, tope 300 MB. |
-| DP-03/DP-04 | Sin receptor Android en el núcleo; ubicación pendiente. |
-| DP-08 | Sin exportación en el núcleo. |
+| DP-03/DP-04 | El receptor Android existe (`integration.android`); su ubicación/exposición definitiva sigue pendiente (hoy solo 127.0.0.1 o IP privada concreta; TLS obligatorio si no es privada). |
+| DP-08 | Exportación CSV disponible (`reporting.CsvExporter`); formato Excel pendiente. |
 
 Otros: el tablero separa "confirmados" de "por verificar" y excluye DUPLICADO/RECHAZADO/ERROR. `ANUNCIADO` solo se alcanza desde `VALIDADO_POR_FUENTE`; para posibles pagos el anuncio queda en `voice_announcement` y en `payment_event.announced_at`. Coincidencia parcial (mismo importe, remitente compatible, ±10 min, otra fuente o sin id externo) ⇒ `PENDIENTE_REVISION` (CP-014). Importes con centavos distintos de cero no se redondean y van a revisión.

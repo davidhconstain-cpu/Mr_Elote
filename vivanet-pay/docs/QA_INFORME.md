@@ -84,7 +84,7 @@ Severidad: Crítica / Alta / Media / Baja. Todos los cambios de código están c
 | R-01 | Baja | Riesgo residual: el receptor sigue usando un pool pequeño (2-4 hilos); un atacante en la misma red local podría degradar el servicio ~30 s por conexión. Por defecto escucha solo en 127.0.0.1 y con IP LAN advierte "sin HTTPS". | Pendiente (aceptado; mitigación: no abrir el puerto en el router, usar `tls.keystore`) | `AndroidWebhookConnector.java` |
 | R-02 | Baja | Modo `auth=token` no tiene nonce ni firma: quien capture el token (HTTP en LAN) puede inyectar eventos falsos; por diseño nunca producen "pago confirmado". El modo por defecto es HMAC. | Pendiente (aceptado, documentado en `AuthMode`) | `integration/android/AuthMode.java` |
 | R-03 | Baja | `FileSecretStore` (macOS/Linux/desarrollo) guarda secretos sin cifrar (permisos 600) y lo avisa en el log. En Windows se usa DPAPI. | Pendiente (aceptado: no es la plataforma objetivo) | `security/FileSecretStore.java` |
-| R-04 | Baja | En CP-014 el operador podría validar a mano los dos eventos del par Gmail/Android y contar el pago dos veces; la interfaz muestra "Posible duplicado del evento #N" pero no lo bloquea. Además `LoggingSpeechEngine` (solo fuera de Windows) registra el texto hablado (banco e importe). | Pendiente (aceptado; DP-12) | `ui/viewmodel/ReviewViewModel.java`, `voice/LoggingSpeechEngine.java` |
+| R-04 | Baja | En CP-014 el operador podía validar a mano los dos eventos del par Gmail/Android y contar el pago dos veces. **Corregido:** `ReviewService.validate` rechaza confirmar un evento enlazado como posible duplicado (en cualquier sentido) de otro ya confirmado ("Este pago ya fue confirmado por el evento #N; descártalo como duplicado"), salvo motivo explícito de pago distinto (queda en `validation`/`audit_log`); Pendientes ofrece "Descartar como duplicado". Sigue abierto, aceptado: `LoggingSpeechEngine` (solo fuera de Windows) registra el texto hablado (banco e importe). | Corregido (doble conteo); resto aceptado | `application/ReviewService.java`, `ui/view/PendingScreen.java`, `ReviewServiceTest.noPermiteConfirmarElSegundoDelParPosibleDuplicadoR04` |
 
 ### Revisión dirigida: conclusiones sin hallazgos
 
@@ -135,7 +135,7 @@ Severidad: Crítica / Alta / Media / Baja. Todos los cambios de código están c
 
 ```bash
 cd vivanet-pay
-mvn -q -DbuildDir=target-qa clean test        # 276 pruebas, 5 omitidas solo en Linux/macOS
+mvn -q -DbuildDir=target-qa clean test        # 282 pruebas, 0 fallos, 5 omitidas solo en Linux/macOS
 mvn -q -DbuildDir=target-qa test -Dtest='Qa*Test,RedactorTest,GmailOAuthSupportTest,BackupRestoreTest'
 ```
 

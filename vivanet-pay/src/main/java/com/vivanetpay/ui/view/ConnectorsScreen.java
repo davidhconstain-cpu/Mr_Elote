@@ -71,8 +71,8 @@ public final class ConnectorsScreen implements Screen {
     private void render(List<Snapshot> all) {
         list.getChildren().clear();
         if (all.isEmpty()) {
-            list.getChildren().add(Ui.text("No hay conectores activos. Se habilitan en config.properties "
-                    + "(connectors.enabled=gmail,android) dentro de " + ctx.app.config().dataDir() + "."));
+            list.getChildren().add(Ui.text("No hay conectores activos. Por defecto arrancan Gmail y Android; "
+                    + "alguien los desactivó con connectors.enabled=none en config.properties dentro de " + ctx.app.config().dataDir() + "."));
         }
         if (!ctx.boot.missingProviders().isEmpty()) {
             list.getChildren().add(Ui.text("⚠ Habilitados pero sin implementación disponible: " + ctx.boot.missingProviders()));

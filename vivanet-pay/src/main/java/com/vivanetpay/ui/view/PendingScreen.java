@@ -1,5 +1,6 @@
 package com.vivanetpay.ui.view;
 
+import com.vivanetpay.application.DuplicateConfirmationException;
 import com.vivanetpay.application.ReviewItem;
 import com.vivanetpay.ui.Background;
 import com.vivanetpay.ui.Ui;
@@ -24,6 +25,7 @@ public final class PendingScreen implements Screen {
     private final TextArea detail = new TextArea();
     private final Button validate = new Button("✔ Validar (ya lo vi en mi banco)");
     private final Button discard = new Button("✖ Descartar…");
+    private final Button discardDup = new Button("⧉ Descartar como duplicado");
     private final Button keep = new Button("⏸ Mantener pendiente");
 
     public PendingScreen(UiContext ctx) {
@@ -41,11 +43,12 @@ public final class PendingScreen implements Screen {
         table.getSelectionModel().selectedItemProperty().addListener((o, a, b) -> select(b));
         validate.setOnAction(e -> doValidate());
         discard.setOnAction(e -> doDiscard());
+        discardDup.setOnAction(e -> doDiscardDuplicate());
         keep.setOnAction(e -> doKeep());
         select(null);
         root.getChildren().addAll(Ui.title("Pendientes de revisión"),
                 Ui.muted("Estos pagos NO están confirmados. Compáralos con tu app o extracto bancario antes de validarlos."),
-                table, Ui.heading("Detalle"), detail, new HBox(10, validate, discard, keep));
+                table, Ui.heading("Detalle"), detail, new HBox(10, validate, discardDup, discard, keep));
         root.setPadding(new Insets(18));
     }
 
@@ -74,6 +77,7 @@ public final class PendingScreen implements Screen {
         validate.setDisable(!has || !ReviewViewModel.canValidate(r.item()));
         discard.setDisable(!has);
         keep.setDisable(!has);
+        discardDup.setDisable(!has || !ReviewViewModel.isPossibleDuplicate(r.item()));
     }
 
     @Override
@@ -95,7 +99,35 @@ public final class PendingScreen implements Screen {
                     + "Quedará registrado a nombre de " + ctx.actor() + ".")) {
                 return;
             }
-            run(() -> ctx.app.reviewService().validate(r.eventId(), ctx.actor(), null), "No se pudo validar");
+            Background.run(() -> {
+                try {
+                    ctx.app.reviewService().validate(r.eventId(), ctx.actor(), null);
+                    return Optional.<String>empty();
+                } catch (DuplicateConfirmationException ex) {
+                    return Optional.of(ex.getMessage());
+                }
+            }, blocked -> {
+                if (blocked.isEmpty()) {
+                    refresh();
+                    return;
+                }
+                // R-04: el par ya está confirmado; solo se permite con un motivo explícito de "pago distinto"
+                Ui.ask("Posible doble conteo", blocked.get() + ".\nSi realmente es un pago distinto, escribe el motivo "
+                        + "(obligatorio; queda en auditoría):", true).ifPresent(why -> {
+                    String clean = ReviewViewModel.requireDistinctPaymentReason(why);
+                    run(() -> ctx.app.reviewService().validate(r.eventId(), ctx.actor(), null, clean),
+                            "No se pudo validar");
+                });
+            }, e -> Ui.error("No se pudo validar", Ui.describe(e)));
+        });
+    }
+
+    private void doDiscardDuplicate() {
+        selected().ifPresent(r -> {
+            if (Ui.confirm("Descartar como duplicado", "El evento quedará RECHAZADO como duplicado del evento #"
+                    + r.item().row().possibleDuplicateOfEventId() + " (no se borra).")) {
+                run(() -> ctx.app.reviewService().discardAsDuplicate(r.eventId(), ctx.actor()), "No se pudo descartar");
+            }
         });
     }
 

@@ -79,6 +79,23 @@ public final class PaymentEventRepository {
         }
     }
 
+    /**
+     * Evento ya confirmado (VALIDADO_POR_FUENTE o ANUNCIADO) vinculado como posible duplicado del dado, en
+     * cualquiera de los dos sentidos (R-04, CP-014): el dado apunta a él, o él apunta al dado.
+     */
+    public Optional<Long> findConfirmedPossibleDuplicatePeer(Connection c, long id) throws SQLException {
+        String sql = "SELECT p.id FROM payment_event p, payment_event e WHERE e.id = ? "
+                + "AND p.status IN ('VALIDADO_POR_FUENTE','ANUNCIADO') "
+                + "AND (p.id = e.possible_duplicate_of_event_id OR p.possible_duplicate_of_event_id = e.id) "
+                + "ORDER BY p.id LIMIT 1";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(rs.getLong(1)) : Optional.empty();
+            }
+        }
+    }
+
     public Optional<PaymentEvent> findById(long id) {
         return db.withConnection(c -> findById(c, id));
     }

@@ -260,3 +260,10 @@ No está en la lista DP-01..DP-12, pero afecta directamente a DP-03 y DP-04 y a 
 2. Si se quiere que el modo `token` sea el predeterminado para instalaciones de MacroDroid, hay que cambiar el valor por defecto en `AuthMode.parse` y en `AndroidWebhookConfig.from`, y revisar la prueba `comodinBloqueadoPorDefectoYNombresNoPermitidos` y las de autenticación del conector.
 3. Si se prefiere mantener `hmac` por defecto, la alternativa es un emisor que sí firme (Tasker, HTTP Shortcuts o un puente propio). Esto también encaja con DP-04, porque un intermediario en la nube sería el lugar natural para firmar.
 4. Mientras no se decida, la guía de MacroDroid debe seguir indicando la línea `connector.android.auth=token` de forma explícita.
+
+---
+
+## Notas de las correcciones finales
+
+- **Conectores por defecto:** `connectors.enabled` pasó de vacío a `gmail,android` (`AppConfig.DEFAULT_CONNECTORS`). Gmail sin credenciales queda en `REQUIERE_AUTORIZACION` sin tocar la red; Android escucha solo en `127.0.0.1`. `connectors.enabled=none` no arranca ninguno (un valor en blanco vuelve al valor por defecto).
+- **Doble conteo (R-04, relacionado con DP-12):** `ReviewService.validate` rechaza confirmar un evento enlazado como posible duplicado (en cualquier sentido) de otro ya confirmado, salvo que se indique un motivo de "pago distinto", que queda en `validation` (`MANUAL_PAGO_DISTINTO`) y en `audit_log` (`DUPLICATE_OVERRIDE`). Pendientes ofrece "Descartar como duplicado". Quién puede autorizar ese override sigue dentro de DP-12.

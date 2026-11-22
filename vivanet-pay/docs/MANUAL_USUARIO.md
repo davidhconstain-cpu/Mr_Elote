@@ -41,7 +41,7 @@ Sus datos (la base de datos, los registros y los respaldos) se guardan en `%APPD
 
 1. **Abra Vivanet Pay.** Se abre en el **Tablero**.
 2. **Inicio automático** (opcional): vaya a **Configuración** y marque *"Iniciar Vivanet Pay al iniciar sesión en Windows"*. Así la aplicación arranca sola cada vez que enciende el computador, en segundo plano.
-3. **Conectores**: el proveedor debe dejar listos los conectores (Gmail y/o Android). Si la pantalla dice *"No hay conectores activos"*, comuníquese con el proveedor; la activación es técnica.
+3. **Conectores**: el proveedor debe dejar listos los conectores (Gmail y/o Android). Gmail y Android arrancan por defecto (Gmail queda en *Requiere autorización* hasta que lo autorice). Si la pantalla dice *"No hay conectores activos"*, alguien los desactivó en la configuración; comuníquese con el proveedor.
 4. **Voz**: vaya a **Voz** y pulse **Probar voz**. Debe escuchar una frase de prueba. Si no suena, revise el volumen de Windows y la sección 9.
 
 ---

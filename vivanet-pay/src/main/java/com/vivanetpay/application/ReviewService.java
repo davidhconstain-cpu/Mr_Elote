@@ -37,6 +37,7 @@ public final class ReviewService {
     public static final String RULE_MANUAL_VALIDATE = "MANUAL_VALIDAR";
     public static final String RULE_MANUAL_DISCARD = "MANUAL_DESCARTAR";
     public static final String RULE_MANUAL_KEEP = "MANUAL_MANTENER";
+    public static final String RULE_MANUAL_DISTINCT_PAYMENT = "MANUAL_PAGO_DISTINTO";
 
     private final Database db;
     private final PaymentEventRepository events;
@@ -86,15 +87,37 @@ public final class ReviewService {
      * @throws IllegalStateException si el evento no tiene importe o la transición no está permitida
      */
     public EventStatus validate(long eventId, String actor, String reason) {
+        return validate(eventId, actor, reason, null);
+    }
+
+    /**
+     * Como {@link #validate(long, String, String)}, con protección contra doble conteo (R-04, CP-014): si el evento
+     * está enlazado como posible duplicado de otro que ya está confirmado, se rechaza con
+     * {@link DuplicateConfirmationException} salvo que {@code distinctPaymentReason} (motivo obligatorio, no vacío)
+     * afirme que son pagos distintos; ese motivo queda en {@code validation} y {@code audit_log}.
+     */
+    public EventStatus validate(long eventId, String actor, String reason, String distinctPaymentReason) {
         requireActor(actor);
+        String override = distinctPaymentReason == null || distinctPaymentReason.isBlank() ? null : distinctPaymentReason.trim();
         Instant now = clock.instant();
-        String why = reason == null || reason.isBlank() ? "Validado manualmente contra el canal oficial" : reason.trim();
+        String why = reason == null || reason.isBlank() ? "Confirmado manualmente por el usuario tras revisar el canal oficial" : reason.trim();
         EventStatus previous = db.inTransaction(c -> {
             Optional<Transaction> tx = transactions.findByEventId(c, eventId);
             if (tx.isEmpty()) {
                 throw new IllegalStateException("No se puede confirmar un evento sin importe extraído (corrección pendiente DP-12)");
             }
+            Optional<Long> peer = events.findConfirmedPossibleDuplicatePeer(c, eventId);
+            if (peer.isPresent() && override == null) {
+                throw new DuplicateConfirmationException(eventId, peer.get());
+            }
             EventStatus prev = events.updateStatus(c, eventId, EventStatus.VALIDADO_POR_FUENTE, why, now);
+            if (peer.isPresent()) {
+                String note = "Confirmado como pago distinto del evento #" + peer.get() + ": " + override;
+                validations.insert(c, new Validation(null, eventId, RULE_MANUAL_DISTINCT_PAYMENT,
+                        ValidationResult.INFORMATIVO, note, now, actor));
+                audit.insert(c, new AuditEntry(null, AuditEntry.ENTITY_EVENT, Long.toString(eventId),
+                        AuditEntry.ACTION_DUPLICATE_OVERRIDE, prev.name(), prev.name(), actor, note, null, now));
+            }
             validations.insert(c, new Validation(null, eventId, RULE_MANUAL_VALIDATE, ValidationResult.APROBADO, why, now, actor));
             audit.insert(c, new AuditEntry(null, AuditEntry.ENTITY_EVENT, Long.toString(eventId),
                     AuditEntry.ACTION_STATUS_CHANGE, prev.name(), EventStatus.VALIDADO_POR_FUENTE.name(), actor, why, null, now));
@@ -107,6 +130,13 @@ public final class ReviewService {
                     null, false, null, null)));
         }
         return EventStatus.VALIDADO_POR_FUENTE;
+    }
+
+    /** Descarta el evento como duplicado de otro ya registrado (R-04); queda RECHAZADO con motivo automático. */
+    public EventStatus discardAsDuplicate(long eventId, String actor) {
+        Long other = events.findById(eventId).map(PaymentEvent::possibleDuplicateOfEventId).orElse(null);
+        return discard(eventId, actor, other == null ? "Descartado como duplicado"
+                : "Descartado como duplicado del evento #" + other);
     }
 
     /** El usuario descarta el evento (queda RECHAZADO, nunca se borra). Motivo obligatorio. */

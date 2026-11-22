@@ -1,0 +1,187 @@
+package com.vivanetpay.integration.android;
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.StreamReadConstraints;
+import com.fasterxml.jackson.core.StreamReadFeature;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.Iterator;
+import java.util.Set;
+
+/**
+ * Validación ESTRICTA del cuerpo (Anexo B). Reglas:
+ * <ul>
+ *   <li>Objeto JSON UTF-8, sin claves duplicadas, profundidad máxima 2, sin campos desconocidos.</li>
+ *   <li>{@code schemaVersion} (entero) = 1. Obligatorio.</li>
+ *   <li>{@code eventId}: texto 1..128, sin caracteres de control. Obligatorio.</li>
+ *   <li>{@code source}: opcional; si viene debe ser {@code ANDROID_NEQUI}.</li>
+ *   <li>{@code title}: texto 0..256. Obligatorio (puede ser vacío).</li>
+ *   <li>{@code text}: texto 1..4096 no vacío. Obligatorio.</li>
+ *   <li>{@code capturedAt}: ISO-8601 con zona (p. ej. {@code 2026-11-22T18:30:05Z}) o epoch en segundos/milisegundos
+ *       (número o texto). Entre 2020-01-01 y ahora + 1 día. Obligatorio.</li>
+ *   <li>{@code app} (0..128), {@code device} (0..64): opcionales. {@code test}: booleano opcional.</li>
+ * </ul>
+ * Los mensajes de error nombran el campo, nunca reproducen su valor.
+ */
+final class WebhookPayloadParser {
+    static final int MAX_EVENT_ID = 128;
+    static final int MAX_TITLE = 256;
+    static final int MAX_TEXT = 4_096;
+    static final int MAX_APP = 128;
+    static final int MAX_DEVICE = 64;
+    private static final Instant MIN_TIME = Instant.parse("2020-01-01T00:00:00Z");
+    private static final Set<String> ALLOWED = Set.of("schemaVersion", "eventId", "source", "app", "title", "text",
+            "capturedAt", "device", "test");
+
+    /** Error de esquema; {@code code} es estable para el emisor, {@code detail} es seguro de mostrar. */
+    static final class InvalidPayloadException extends Exception {
+        final String code;
+
+        InvalidPayloadException(String code, String detail) {
+            super(detail, null, false, false);
+            this.code = code;
+        }
+    }
+
+    private final ObjectMapper mapper;
+
+    WebhookPayloadParser() {
+        JsonFactory factory = JsonFactory.builder()
+                .streamReadConstraints(StreamReadConstraints.builder()
+                        .maxNestingDepth(2).maxStringLength(MAX_TEXT * 2).maxNumberLength(20).build())
+                .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+                .build();
+        this.mapper = new ObjectMapper(factory)
+                .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+        mapper.getFactory().disable(JsonParser.Feature.ALLOW_COMMENTS);
+    }
+
+    WebhookPayload parse(byte[] body, Instant now) throws InvalidPayloadException {
+        JsonNode root;
+        try {
+            root = mapper.readTree(body);
+        } catch (IOException e) {
+            throw new InvalidPayloadException("malformed_json", "El cuerpo no es JSON válido");
+        }
+        if (root == null || !root.isObject()) {
+            throw new InvalidPayloadException("malformed_json", "Se esperaba un objeto JSON");
+        }
+        for (Iterator<String> it = root.fieldNames(); it.hasNext(); ) {
+            String f = it.next();
+            if (!ALLOWED.contains(f)) {
+                throw new InvalidPayloadException("unknown_field", "Campo no permitido: " + safeName(f));
+            }
+        }
+        JsonNode sv = root.get("schemaVersion");
+        if (sv == null || !sv.canConvertToInt() || !sv.isIntegralNumber()) {
+            throw new InvalidPayloadException("invalid_schema", "schemaVersion obligatorio (entero)");
+        }
+        if (sv.intValue() != 1) {
+            throw new InvalidPayloadException("unsupported_schema_version", "schemaVersion no soportado");
+        }
+        String eventId = text(root, "eventId", true, 1, MAX_EVENT_ID, false);
+        String source = text(root, "source", false, 0, 32, false);
+        if (source != null && !source.equals("ANDROID_NEQUI")) {
+            throw new InvalidPayloadException("invalid_schema", "source debe ser ANDROID_NEQUI");
+        }
+        String title = text(root, "title", true, 0, MAX_TITLE, true);
+        String text = text(root, "text", true, 1, MAX_TEXT, true);
+        if (text.isBlank()) {
+            throw new InvalidPayloadException("invalid_schema", "text no puede estar vacío");
+        }
+        String app = text(root, "app", false, 0, MAX_APP, false);
+        String device = text(root, "device", false, 0, MAX_DEVICE, false);
+        boolean test = false;
+        JsonNode t = root.get("test");
+        if (t != null && !t.isNull()) {
+            if (!t.isBoolean()) {
+                throw new InvalidPayloadException("invalid_schema", "test debe ser booleano");
+            }
+            test = t.booleanValue();
+        }
+        Instant capturedAt = instant(root.get("capturedAt"), now);
+        return new WebhookPayload(1, eventId.strip(), "ANDROID_NEQUI", blankToNull(app), title, text, capturedAt,
+                blankToNull(device), test);
+    }
+
+    private static String text(JsonNode root, String field, boolean required, int min, int max, boolean multiline)
+            throws InvalidPayloadException {
+        JsonNode n = root.get(field);
+        if (n == null || n.isNull()) {
+            if (required) {
+                throw new InvalidPayloadException("invalid_schema", field + " es obligatorio");
+            }
+            return null;
+        }
+        if (!n.isTextual()) {
+            throw new InvalidPayloadException("invalid_schema", field + " debe ser texto");
+        }
+        String v = n.textValue();
+        int len = v.codePointCount(0, v.length());
+        if (len < min || len > max) {
+            throw new InvalidPayloadException("invalid_schema", field + " debe tener entre " + min + " y " + max + " caracteres");
+        }
+        if (min > 0 && v.isBlank()) {
+            throw new InvalidPayloadException("invalid_schema", field + " no puede estar vacío");
+        }
+        for (int i = 0; i < v.length(); i++) {
+            char c = v.charAt(i);
+            boolean allowedWs = multiline && (c == '\n' || c == '\r' || c == '\t');
+            if ((Character.isISOControl(c) && !allowedWs) || c == ' ' || c == ' ') {
+                throw new InvalidPayloadException("invalid_schema", field + " contiene caracteres de control");
+            }
+        }
+        return v;
+    }
+
+    private static Instant instant(JsonNode n, Instant now) throws InvalidPayloadException {
+        if (n == null || n.isNull()) {
+            throw new InvalidPayloadException("invalid_schema", "capturedAt es obligatorio");
+        }
+        Instant value;
+        if (n.isIntegralNumber()) {
+            value = fromEpoch(n.asLong());
+        } else if (n.isTextual()) {
+            String s = n.textValue().strip();
+            if (s.length() > 40) {
+                throw new InvalidPayloadException("invalid_schema", "capturedAt demasiado largo");
+            }
+            if (s.matches("\\d{9,13}")) {
+                value = fromEpoch(Long.parseLong(s));
+            } else {
+                try {
+                    value = OffsetDateTime.parse(s).toInstant();
+                } catch (DateTimeParseException e) {
+                    throw new InvalidPayloadException("invalid_schema",
+                            "capturedAt debe ser ISO-8601 con zona o epoch (segundos/milisegundos)");
+                }
+            }
+        } else {
+            throw new InvalidPayloadException("invalid_schema", "capturedAt debe ser texto o número");
+        }
+        if (value.isBefore(MIN_TIME) || value.isAfter(now.plusSeconds(86_400))) {
+            throw new InvalidPayloadException("invalid_schema", "capturedAt fuera de rango (revise la hora del teléfono)");
+        }
+        return value;
+    }
+
+    private static Instant fromEpoch(long v) {
+        return v >= 100_000_000_000L ? Instant.ofEpochMilli(v) : Instant.ofEpochSecond(v);
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.strip();
+    }
+
+    private static String safeName(String f) {
+        String s = f.replaceAll("[^A-Za-z0-9_]", "?");
+        return s.length() > 40 ? s.substring(0, 40) + "..." : s;
+    }
+}

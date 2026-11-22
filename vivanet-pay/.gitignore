@@ -3,3 +3,6 @@ target-*/
 *.db
 *.db-wal
 *.db-shm
+
+# Credenciales OAuth de Google (nunca al repositorio)
+client_secret*.json

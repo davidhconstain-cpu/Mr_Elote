@@ -1,0 +1,28 @@
+.root {
+    -fx-font-family: "Segoe UI", "Noto Sans", sans-serif;
+    -fx-font-size: 14px;
+    -fx-base: #f4f6f8;
+    -fx-background: #f4f6f8;
+}
+.nav { -fx-background-color: #0b3d6b; -fx-padding: 12 0 12 0; }
+.nav-title { -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 4 16 14 16; }
+.nav-button {
+    -fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10 18 10 18; -fx-background-radius: 0; -fx-font-size: 14px; -fx-cursor: hand;
+}
+.nav-button:hover { -fx-background-color: #1a5a9a; }
+.nav-button:selected { -fx-background-color: #ffffff; -fx-text-fill: #0b3d6b; -fx-font-weight: bold; }
+.nav-button:focused { -fx-border-color: #ffd34d; -fx-border-width: 2; }
+.screen-title { -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #0b3d6b; }
+.section-heading { -fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #222; }
+.muted { -fx-text-fill: #555; }
+.big-number { -fx-font-size: 34px; -fx-font-weight: bold; }
+.card { -fx-background-color: white; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-width: 2; }
+.card-ok { -fx-border-color: #1b7f3b; }
+.card-warn { -fx-border-color: #b36b00; -fx-border-style: segments(8, 4); }
+.card-neutral { -fx-border-color: #c5ccd3; }
+.banner {
+    -fx-background-color: #fff3cd; -fx-border-color: #b36b00; -fx-border-width: 0 0 2 0;
+    -fx-padding: 8 14 8 14; -fx-text-fill: #4a3000; -fx-font-weight: bold;
+}
+.button { -fx-padding: 6 14 6 14; }

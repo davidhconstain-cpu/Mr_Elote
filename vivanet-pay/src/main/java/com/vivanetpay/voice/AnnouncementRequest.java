@@ -29,6 +29,9 @@ public record AnnouncementRequest(Long eventId, Long transactionId, Announcement
         if (kind == AnnouncementKind.PAGO_CONFIRMADO && (eventStatus == null || !eventStatus.isConfirmed())) {
             throw new IllegalArgumentException("RN-003: 'pago confirmado' solo para eventos validados; estado=" + eventStatus);
         }
+        if (kind == AnnouncementKind.PAGO_CONFIRMADO && amount == null) {
+            throw new IllegalArgumentException("'pago confirmado' exige un importe (nunca se dice \"null pesos\")");
+        }
     }
 
     /** Alerta de conector desconectado. */

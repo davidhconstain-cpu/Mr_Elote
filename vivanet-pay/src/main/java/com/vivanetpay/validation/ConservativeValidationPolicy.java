@@ -63,7 +63,7 @@ public final class ConservativeValidationPolicy implements ValidationPolicy {
         }
         if (in.parse().confidence() < config.minConfidence()) {
             return new PolicyDecision(EventStatus.PENDIENTE_REVISION, unconfirmed,
-                    String.format("Confianza del análisis insuficiente (%.2f < %.2f)",
+                    String.format(java.util.Locale.ROOT, "Confianza del análisis insuficiente (%.2f < %.2f)",
                             in.parse().confidence(), config.minConfidence()));
         }
         if (config.automaticValidationEnabled() && config.trustedSources().contains(in.raw().source())) {

@@ -55,4 +55,22 @@ class BackupRestoreTest {
             app.ctx.close();
         }
     }
+
+    /** QA: un usuario de Windows como "D'Angelo" o una carpeta con espacios no debe romper el respaldo (RNF-013). */
+    @Test
+    void respaldaYRestauraEnRutasConApostrofoYEspacios() throws Exception {
+        TestApp app = TestApp.create(dir.resolve("data3"));
+        try {
+            app.ctx.ingestionService().ingest(app.nequi("q-1", "Ana te envió $10.000"));
+            Path weird = dir.resolve("Copias de D'Angelo");
+            Path backup = app.ctx.maintenance().backupToDirectory(weird);
+            assertThat(Files.size(backup)).isPositive();
+            assertThat(DatabaseMaintenance.integrityCheck(backup)).isEmpty();
+            app.ctx.ingestionService().ingest(app.nequi("q-2", "Ana te envió $20.000"));
+            app.ctx.maintenance().restoreFrom(backup);
+            assertThat(app.ctx.transactionRepository().count()).isEqualTo(1);
+        } finally {
+            app.ctx.close();
+        }
+    }
 }

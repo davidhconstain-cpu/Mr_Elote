@@ -85,9 +85,9 @@ public final class DatabaseMaintenance {
             throw new PersistenceException("No se pudo preparar el respaldo", e);
         }
         db.withConnection(c -> {
-            try (Statement st = c.createStatement()) {
-                st.executeUpdate("backup to " + quote(target));
-            }
+            // API nativa de sqlite-jdbc: recibe la ruta tal cual (el comando SQL "backup to" no admite apóstrofos en
+            // la ruta, p. ej. el usuario de Windows "D'Angelo").
+            c.unwrap(org.sqlite.SQLiteConnection.class).getDatabase().backup("main", target.toAbsolutePath().toString(), null);
             return null;
         });
         List<String> problems = integrityCheck(target);
@@ -117,9 +117,7 @@ public final class DatabaseMaintenance {
             throw new PersistenceException("El respaldo no es íntegro, no se restaura: " + problems);
         }
         db.withConnection(c -> {
-            try (Statement st = c.createStatement()) {
-                st.executeUpdate("restore from " + quote(backup));
-            }
+            c.unwrap(org.sqlite.SQLiteConnection.class).getDatabase().restore("main", backup.toAbsolutePath().toString(), null);
             return null;
         });
         List<String> after = integrityCheck();
@@ -127,13 +125,5 @@ public final class DatabaseMaintenance {
             throw new PersistenceException("La base restaurada no pasó integrity_check: " + after);
         }
         log.warn("Base de datos restaurada desde {}", backup.getFileName());
-    }
-
-    private static String quote(Path p) {
-        String s = p.toAbsolutePath().toString();
-        if (s.contains("'")) {
-            throw new PersistenceException("Ruta de respaldo no admitida (contiene comilla simple)");
-        }
-        return "'" + s + "'";
     }
 }

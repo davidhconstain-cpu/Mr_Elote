@@ -128,7 +128,7 @@ public final class ReportingQueries {
         }
         if (f.text() != null && !f.text().isBlank()) {
             where.append("AND (LOWER(t.sender) LIKE ? ESCAPE '\\' OR LOWER(t.reference) LIKE ? ESCAPE '\\') ");
-            String like = "%" + f.text().trim().toLowerCase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            String like = "%" + f.text().trim().toLowerCase(java.util.Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
             params.add(like);
             params.add(like);
         }

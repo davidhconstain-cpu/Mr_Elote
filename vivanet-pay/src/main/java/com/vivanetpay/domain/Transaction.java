@@ -26,7 +26,7 @@ public record Transaction(Long id, Long eventId, String bank, long amount, Strin
         if (!CopAmount.isValid(amount)) {
             throw new IllegalArgumentException("Importe inválido (debe ser > 0 pesos): " + amount);
         }
-        currency = currency == null ? CopAmount.CURRENCY : currency.trim().toUpperCase();
+        currency = currency == null ? CopAmount.CURRENCY : currency.trim().toUpperCase(java.util.Locale.ROOT);
         if (!CopAmount.CURRENCY.equals(currency)) {
             throw new IllegalArgumentException("Moneda no admitida (RN-006): " + currency);
         }

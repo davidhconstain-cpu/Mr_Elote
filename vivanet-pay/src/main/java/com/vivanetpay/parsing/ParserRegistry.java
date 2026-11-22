@@ -56,8 +56,8 @@ public final class ParserRegistry {
             boolean supported;
             try {
                 supported = parser.supports(event);
-            } catch (RuntimeException e) {
-                log.warn("Parser {} falló en supports(): {}", parser.id(), e.toString());
+            } catch (RuntimeException | StackOverflowError e) { // un texto hostil no debe envenenar la cola de ingesta
+                log.warn("Parser {} falló en supports(): {}", parser.id(), e.getClass().getSimpleName());
                 continue;
             }
             if (!supported) {
@@ -66,8 +66,8 @@ public final class ParserRegistry {
             ParseResult result;
             try {
                 result = parser.parse(event);
-            } catch (RuntimeException e) {
-                log.warn("Parser {} lanzó excepción; se trata como no reconocido: {}", parser.id(), e.toString());
+            } catch (RuntimeException | StackOverflowError e) {
+                log.warn("Parser {} lanzó excepción; se trata como no reconocido: {}", parser.id(), e.getClass().getSimpleName());
                 result = ParseResult.notRecognized(parser.id(), "Error interno del analizador " + parser.id());
             }
             if (result == null) {

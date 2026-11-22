@@ -111,7 +111,7 @@ public final class WindowsSpeechEngine implements SpeechEngine, AutoCloseable {
         }
         killProcess();
         try {
-            ProcessBuilder pb = new ProcessBuilder(List.of("powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive",
+            ProcessBuilder pb = new ProcessBuilder(List.of(com.vivanetpay.security.SystemExecutables.powerShell(), "-NoLogo", "-NoProfile", "-NonInteractive",
                     "-ExecutionPolicy", "Bypass", "-EncodedCommand", PowerShellText.encodedScript()));
             pb.redirectErrorStream(false);
             pb.redirectError(ProcessBuilder.Redirect.DISCARD);

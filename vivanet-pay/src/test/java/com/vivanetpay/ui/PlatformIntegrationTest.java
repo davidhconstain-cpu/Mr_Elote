@@ -50,10 +50,13 @@ class PlatformIntegrationTest {
 
     @Test
     void regArgumentsAreSeparateListEntries() {
-        assertThat(WindowsStartup.addArgs("C:\\Program Files\\VivanetPay\\VivanetPay.exe")).containsExactly("reg.exe", "add",
+        assertThat(WindowsStartup.addArgs("C:\\Program Files\\VivanetPay\\VivanetPay.exe")).containsExactly(WindowsStartup.addArgs("x").get(0), "add",
                 "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "VivanetPay", "/t", "REG_SZ", "/d",
-                "\"C:\\Program Files\\VivanetPay\\VivanetPay.exe\" --minimized", "/f");
-        assertThat(WindowsStartup.deleteArgs()).containsExactly("reg.exe", "delete",
+                "\\\"C:\\Program Files\\VivanetPay\\VivanetPay.exe\\\" --minimized", "/f");
+        assertThat(WindowsStartup.commandLine("C:\\Program Files\\VivanetPay\\VivanetPay.exe"))
+                .isEqualTo("\"C:\\Program Files\\VivanetPay\\VivanetPay.exe\" --minimized");
+        assertThat(WindowsStartup.addArgs("x").get(0)).endsWith("reg.exe");
+        assertThat(WindowsStartup.deleteArgs()).containsExactly(WindowsStartup.deleteArgs().get(0), "delete",
                 "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "VivanetPay", "/f");
         assertThat(WindowsStartup.queryArgs()).contains("query");
         assertThatThrownBy(() -> WindowsStartup.commandLine("C:\\a\" & calc")).isInstanceOf(IllegalArgumentException.class);
@@ -84,6 +87,12 @@ class PlatformIntegrationTest {
         assertThat(s.enable("C:\\Temp\\VivanetPayTest.exe").ok()).isTrue();
         try {
             assertThat(s.isEnabled()).isTrue();
+            // El valor real del registro debe conservar las comillas alrededor de la ruta (QA: escape de reg.exe)
+            Process q = new ProcessBuilder(WindowsStartup.queryArgs()).redirectErrorStream(true).start();
+            String out = new String(q.getInputStream().readAllBytes());
+            assertThat(out).contains("\"C:\\Temp\\VivanetPayTest.exe\" --minimized");
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
         } finally {
             assertThat(s.disable().ok()).isTrue();
         }

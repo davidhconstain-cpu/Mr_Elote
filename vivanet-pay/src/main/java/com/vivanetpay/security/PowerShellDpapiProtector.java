@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
@@ -50,14 +48,7 @@ public final class PowerShellDpapiProtector implements DataProtector {
     }
 
     static String defaultExecutable() {
-        String root = System.getenv("SystemRoot");
-        if (root != null && !root.isBlank()) {
-            Path p = Path.of(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-            if (Files.isRegularFile(p)) {
-                return p.toString();
-            }
-        }
-        return "powershell.exe";
+        return SystemExecutables.powerShell();
     }
 
     @Override

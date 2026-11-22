@@ -129,6 +129,12 @@ abstract class AbstractTemplateParser implements VersionedParser {
             notes.add("formato de importe ambiguo ('" + numeric + "'): requiere revisión");
         }
 
+        if (amount > 0 && continuesAfterGap(text, m.end("amt"))) {
+            // "$5<ZWSP>0.000" o "$50 000": el número visible podría ser otro que el extraído (IDD 8.2)
+            confidence = Math.min(confidence, CONF_LOW);
+            notes.add("el importe parece continuar tras un espacio o carácter invisible: requiere revisión");
+        }
+
         String sender = null;
         if (hasGroup(m, "name")) {
             String raw = text.substring(m.start("name"), m.end("name")).trim().replaceAll("\\s+", " ");
@@ -165,6 +171,34 @@ abstract class AbstractTemplateParser implements VersionedParser {
                 .confidence(confidence)
                 .reason(String.join("; ", notes))
                 .build();
+    }
+
+    private static final Pattern THOUSANDS_GROUP = Pattern.compile("\\d{3}(?![\\d]|[.,]\\d)");
+
+    /**
+     * true si tras el importe extraído hay (a lo sumo 2) separadores y luego más dígitos que podrían formar parte del
+     * mismo número visible: cualquier carácter invisible de formato (ZWSP, ZWJ, BOM...) seguido de un dígito, o un
+     * espacio seguido de un grupo de exactamente tres dígitos ("$50 000").
+     */
+    static boolean continuesAfterGap(String text, int end) {
+        int i = end;
+        boolean invisible = false;
+        int gap = 0;
+        while (i < text.length() && gap < 2) {
+            char c = text.charAt(i);
+            int type = Character.getType(c);
+            if (type == Character.FORMAT) {
+                invisible = true;
+            } else if (!(Character.isWhitespace(c) || c == '\u00A0' || c == '\u202F')) {
+                break;
+            }
+            i++;
+            gap++;
+        }
+        if (gap == 0 || i >= text.length() || text.charAt(i) < '0' || text.charAt(i) > '9') {
+            return false;
+        }
+        return invisible || THOUSANDS_GROUP.matcher(text).region(i, text.length()).lookingAt();
     }
 
     private static boolean hasGroup(Matcher m, String name) {

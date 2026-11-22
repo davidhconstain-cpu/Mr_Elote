@@ -23,7 +23,7 @@ final class GmailErrors {
         if (status == 401) {
             return new GmailAuthException("La sesión de Gmail venció. Vuelve a autorizar la cuenta.", original);
         }
-        if (status == 429 || (status == 403 && reason != null && reason.toLowerCase().contains("ratelimit"))
+        if (status == 429 || (status == 403 && reason != null && reason.toLowerCase(java.util.Locale.ROOT).contains("ratelimit"))
                 || (status == 403 && "quotaExceeded".equals(reason))) {
             return new GmailRateLimitException("Gmail limitó temporalmente las consultas");
         }

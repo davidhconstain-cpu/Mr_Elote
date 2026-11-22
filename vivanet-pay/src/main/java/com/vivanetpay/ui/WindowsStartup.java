@@ -3,6 +3,8 @@ package com.vivanetpay.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vivanetpay.security.SystemExecutables;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
@@ -45,16 +47,23 @@ public final class WindowsStartup {
         return "\"" + executablePath + "\" " + MINIMIZED_ARG;
     }
 
+    /**
+     * Argumentos de {@code reg add}. {@code reg.exe} se invoca por ruta absoluta (no por PATH/directorio actual).
+     * Java NO escapa las comillas internas de un argumento al armar la línea de comandos de Windows, así que el dato
+     * {@code /d} lleva las comillas escapadas como {@code \"} (convención de reg.exe/CRT): en el registro queda
+     * {@code "C:\ruta con espacios\VivanetPay.exe" --minimized}.
+     */
     public static List<String> addArgs(String executablePath) {
-        return List.of("reg.exe", "add", RUN_KEY, "/v", VALUE_NAME, "/t", "REG_SZ", "/d", commandLine(executablePath), "/f");
+        return List.of(SystemExecutables.regExe(), "add", RUN_KEY, "/v", VALUE_NAME, "/t", "REG_SZ", "/d",
+                commandLine(executablePath).replace("\"", "\\\""), "/f");
     }
 
     public static List<String> deleteArgs() {
-        return List.of("reg.exe", "delete", RUN_KEY, "/v", VALUE_NAME, "/f");
+        return List.of(SystemExecutables.regExe(), "delete", RUN_KEY, "/v", VALUE_NAME, "/f");
     }
 
     public static List<String> queryArgs() {
-        return List.of("reg.exe", "query", RUN_KEY, "/v", VALUE_NAME);
+        return List.of(SystemExecutables.regExe(), "query", RUN_KEY, "/v", VALUE_NAME);
     }
 
     /**
@@ -122,12 +131,25 @@ public final class WindowsStartup {
 
     private static int exec(List<String> args) throws IOException, InterruptedException {
         Process p = new ProcessBuilder(args).redirectErrorStream(true).start();
-        p.getInputStream().readAllBytes();
-        if (!p.waitFor(15, TimeUnit.SECONDS)) {
-            p.destroyForcibly();
-            throw new IOException("reg.exe no respondió");
+        try {
+            // La salida se vacía en un hilo aparte para que el tiempo de espera sea real aunque reg.exe se cuelgue.
+            Thread drain = Thread.ofVirtual().start(() -> {
+                try {
+                    p.getInputStream().readAllBytes();
+                } catch (IOException ignored) {
+                    // el proceso terminó o se destruyó
+                }
+            });
+            if (!p.waitFor(15, TimeUnit.SECONDS)) {
+                throw new IOException("reg.exe no respondió");
+            }
+            drain.join(2_000);
+            return p.exitValue();
+        } finally {
+            if (p.isAlive()) {
+                p.destroyForcibly();
+            }
         }
-        return p.exitValue();
     }
 
 }

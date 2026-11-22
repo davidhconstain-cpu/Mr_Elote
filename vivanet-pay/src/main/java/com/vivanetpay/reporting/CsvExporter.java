@@ -20,7 +20,7 @@ import java.util.List;
  * fin de línea CRLF, importes en pesos enteros sin separadores y horas en America/Bogota.
  * <p>
  * Protección contra inyección de fórmulas (CSV injection): todo texto libre que empiece por {@code = + - @},
- * tabulación o retorno de carro se antepone con una comilla simple.
+ * tabulación, retorno de carro o salto de línea se antepone con una comilla simple.
  */
 public final class CsvExporter {
     public static final char BOM = '﻿';
@@ -105,7 +105,7 @@ public final class CsvExporter {
             return v;
         }
         char c = v.charAt(0);
-        if (c == '=' || c == '+' || c == '-' || c == '@' || c == '\t' || c == '\r') {
+        if (c == '=' || c == '+' || c == '-' || c == '@' || c == '\t' || c == '\r' || c == '\n') {
             return "'" + v;
         }
         return v;

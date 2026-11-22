@@ -70,6 +70,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class AndroidWebhookConnector extends AbstractConnector {
     private static final Logger log = LoggerFactory.getLogger(AndroidWebhookConnector.class);
 
+    static {
+        // Anti "slowloris": el servidor JDK no limita por defecto cuánto tarda un cliente en enviar la solicitud/leer la
+        // respuesta, y con 2-4 hilos un cliente lento podría agotarlos. Se fijan tiempos máximos (segundos) salvo que
+        // el operador ya los haya definido. Las propiedades las lee el JDK al cargar su configuración del servidor.
+        for (String prop : new String[]{"sun.net.httpserver.maxReqTime", "sun.net.httpserver.maxRspTime"}) {
+            if (System.getProperty(prop) == null) {
+                System.setProperty(prop, "30");
+            }
+        }
+    }
+
     private final ConnectorDependencies deps;
     private final AndroidWebhookConfig config;
     private final WebhookSecretManager secrets;

@@ -31,10 +31,22 @@ import java.util.Set;
 public final class SecretStoreDataStoreFactory extends AbstractDataStoreFactory {
 
     private static final ObjectMapper JSON = new ObjectMapper();
-    /** Solo se admiten las clases que un DataStore de credenciales necesita. */
-    private static final ObjectInputFilter FILTER = ObjectInputFilter.Config.createFilter(
-            "com.google.api.client.auth.oauth2.StoredCredential;java.lang.*;java.util.*;"
-                    + "java.util.concurrent.locks.*;!*");
+    /**
+     * Lista blanca ESTRICTA de clases (clases exactas, sin comodines de paquete) y límites de tamaño: lo que serializa
+     * {@code StoredCredential} (cadenas, {@code Long} y su {@code ReentrantLock}). Cualquier otra clase (colecciones,
+     * {@code Class}, proxies, gadgets...) se rechaza con {@code !*}.
+     */
+    static final String FILTER_PATTERN = "maxdepth=8;maxrefs=64;maxbytes=8192;maxarray=64;"
+            + "com.google.api.client.auth.oauth2.StoredCredential;"
+            + "java.lang.String;java.lang.Long;java.lang.Number;"
+            + "java.util.concurrent.locks.ReentrantLock;"
+            + "java.util.concurrent.locks.ReentrantLock$Sync;"
+            + "java.util.concurrent.locks.ReentrantLock$NonfairSync;"
+            + "java.util.concurrent.locks.ReentrantLock$FairSync;"
+            + "java.util.concurrent.locks.AbstractQueuedSynchronizer;"
+            + "java.util.concurrent.locks.AbstractOwnableSynchronizer;"
+            + "!*";
+    private static final ObjectInputFilter FILTER = ObjectInputFilter.Config.createFilter(FILTER_PATTERN);
 
     private final SecretStore secrets;
     private final String keyPrefix;

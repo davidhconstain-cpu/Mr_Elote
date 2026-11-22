@@ -5,11 +5,21 @@ import com.google.api.client.util.store.DataStore;
 import com.vivanetpay.integration.gmail.GmailTestSupport.MemSecrets;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class GmailOAuthSupportTest {
 
@@ -70,5 +80,76 @@ class GmailOAuthSupportTest {
         assertThat(c.pollInterval().toSeconds()).isEqualTo(30);
         assertThat(c.query()).isEqualTo("from:x");
         assertThat(c.senderAllowed("a@banco.example")).isTrue();
+    }
+
+    // ---- QA: deserialización Java (filtro de clases estricto) ----
+
+    /** "Gadget" de prueba: si se llegara a deserializar, ejecuta código en readObject. */
+    static final class Gadget implements Serializable {
+        static final AtomicInteger EXECUTED = new AtomicInteger();
+
+        private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+            in.defaultReadObject();
+            EXECUTED.incrementAndGet();
+        }
+    }
+
+    private static String serializedValue(Object o) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(o);
+        }
+        return Base64.getEncoder().encodeToString(bos.toByteArray());
+    }
+
+    private static DataStore<StoredCredential> storeWith(MemSecrets secrets, Object payload) throws IOException {
+        String json = "{\"vivanet\":\"" + serializedValue(payload) + "\"}";
+        secrets.put("gmail.gmail-principal.datastore.StoredCredential", json.toCharArray());
+        return new SecretStoreDataStoreFactory(secrets, "gmail.gmail-principal.")
+                .<StoredCredential>getDataStore("StoredCredential");
+    }
+
+    @Test
+    void filtroRechazaCualquierClaseFueraDeLaListaBlanca() throws IOException {
+        Gadget.EXECUTED.set(0);
+        List<Object> hostile = new ArrayList<>();
+        hostile.add(new Gadget());
+        hostile.add(new HashMap<>(Map.of("a", "b")));
+        hostile.add(new ArrayList<>(List.of("x")));
+        hostile.add(new LinkedHashSet<>(List.of("x")));
+        hostile.add(new java.util.PriorityQueue<>(List.of("x")));
+        hostile.add(new java.net.URL("http://127.0.0.1:1/x"));
+        hostile.add(java.util.concurrent.TimeUnit.SECONDS);
+        hostile.add(Integer.valueOf(7));
+        hostile.add(new java.io.File("/etc/passwd"));
+        hostile.add(new Object[]{new Gadget()});
+        hostile.add(new RuntimeException("x"));
+        for (Object o : hostile) {
+            DataStore<StoredCredential> store = storeWith(new MemSecrets(), o);
+            assertThatThrownBy(() -> store.get("vivanet")).as(o.getClass().getName())
+                    .isInstanceOf(java.io.InvalidClassException.class);
+        }
+        assertThat(Gadget.EXECUTED.get()).as("ningún readObject ajeno debe ejecutarse").isZero();
+    }
+
+    @Test
+    void filtroLimitaTamanoYProfundidad() throws IOException {
+        StoredCredential big = new StoredCredential();
+        big.setAccessToken("x".repeat(20_000)); // > maxbytes del filtro
+        DataStore<StoredCredential> store = storeWith(new MemSecrets(), big);
+        assertThatThrownBy(() -> store.get("vivanet")).isInstanceOf(java.io.InvalidClassException.class);
+        assertThat(SecretStoreDataStoreFactory.FILTER_PATTERN).endsWith("!*").doesNotContain("java.util.*")
+                .doesNotContain("java.lang.*");
+    }
+
+    @Test
+    void credencialLegitimaSigueFuncionandoConTokensRealistas() throws IOException {
+        StoredCredential c = new StoredCredential();
+        c.setAccessToken("ya29." + "A".repeat(180));
+        c.setRefreshToken("1//" + "B".repeat(100));
+        c.setExpirationTimeMilliseconds(Long.MAX_VALUE);
+        StoredCredential back = storeWith(new MemSecrets(), c).get("vivanet");
+        assertThat(back.getAccessToken()).isEqualTo(c.getAccessToken());
+        assertThat(back.getRefreshToken()).isEqualTo(c.getRefreshToken());
     }
 }

@@ -38,7 +38,7 @@ public final class Redactor {
     private static final Pattern GOOGLE_TOKEN = Pattern.compile("\\b(?:ya29\\.[A-Za-z0-9._-]+|1//[A-Za-z0-9._-]+)");
     private static final Pattern JWT = Pattern.compile("\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]*");
     private static final Pattern LONG_KEY = Pattern.compile("\\b[A-Za-z0-9_+/=-]{40,}\\b");
-    private static final Pattern EMAIL = Pattern.compile("([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})");
+    private static final Pattern EMAIL = Pattern.compile("([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{0,63}@([A-Za-z0-9.-]{1,255}\\.[A-Za-z]{2,})");
     private static final Pattern LONG_NUMBER = Pattern.compile("(?<![\\dA-Za-z.\\-])\\d{4,}(\\d{4})(?![\\dA-Za-z\\-])");
     /** Teléfonos con separadores: {@code +57 300 123 4567}, {@code 300-123-4567}. */
     private static final Pattern PHONE = Pattern.compile(

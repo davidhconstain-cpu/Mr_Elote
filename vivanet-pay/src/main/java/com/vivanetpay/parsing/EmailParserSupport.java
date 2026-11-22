@@ -5,12 +5,10 @@ import com.vivanetpay.domain.RawEvent;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Verificación de remitente de correo (IDD 8.2: el texto no es evidencia suficiente). */
 final class EmailParserSupport {
-    private static final Pattern ADDRESS = Pattern.compile("([\\w.+%-]+)@([A-Za-z0-9.-]+)");
 
     private EmailParserSupport() {
     }
@@ -20,7 +18,14 @@ final class EmailParserSupport {
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
-    /** Dominio de la última dirección del From (la real, no la del nombre visible), en minúsculas, o null. */
+    private static final Pattern DOMAIN = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?");
+
+    /**
+     * Dominio REAL del remitente: el de la dirección entre {@code <...>} al final del From o, si no hay, el de todo el
+     * valor (después de la ÚLTIMA {@code @}). Un nombre visible con una dirección legítima
+     * ({@code "alertas@banco.com" <x@evil.com>}), una parte local entre comillas ({@code "x@banco.com"@evil.com}) o
+     * comentarios finales no engañan: ante cualquier forma rara el dominio es nulo y el origen queda SIN verificar.
+     */
     static String senderDomain(RawEvent event) {
         String from = event.sender();
         if (from == null || from.isBlank()) {
@@ -29,12 +34,16 @@ final class EmailParserSupport {
         if (from == null) {
             return null;
         }
-        Matcher m = ADDRESS.matcher(from);
-        String domain = null;
-        while (m.find()) {
-            domain = m.group(2);
+        String f = from.strip();
+        int lt = f.lastIndexOf('<');
+        int gt = f.lastIndexOf('>');
+        String addr = lt >= 0 && gt > lt && f.substring(gt + 1).isBlank() ? f.substring(lt + 1, gt).strip() : f;
+        int at = addr.lastIndexOf('@');
+        if (at <= 0 || at == addr.length() - 1) {
+            return null;
         }
-        if (domain == null) {
+        String domain = addr.substring(at + 1);
+        if (!DOMAIN.matcher(domain).matches()) {
             return null;
         }
         domain = domain.toLowerCase(Locale.ROOT);

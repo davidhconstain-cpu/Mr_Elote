@@ -6,6 +6,8 @@ import com.vivanetpay.app.AppContext;
 import com.vivanetpay.application.AppEvent;
 import com.vivanetpay.application.AppEventBus;
 import com.vivanetpay.domain.ConnectorStatus;
+import com.vivanetpay.parsing.DefaultParsers;
+import com.vivanetpay.security.SecretStores;
 import com.vivanetpay.voice.SpeechEngines;
 import com.vivanetpay.voice.VoiceSettings;
 import javafx.application.Application;
@@ -69,7 +71,10 @@ public class MainApp extends Application implements UiContext.Shell {
         }
         Thread boot = new Thread(() -> {
             try {
-                Bootstrap.Result result = Bootstrap.start(AppContext.builder(config).speechEngine(SpeechEngines.create()));
+                Bootstrap.Result result = Bootstrap.start(AppContext.builder(config)
+                        .speechEngine(SpeechEngines.create())
+                        .secretStore(SecretStores.forCurrentOs(config.dataDir()))
+                        .parsers(DefaultParsers.all()));
                 Platform.runLater(() -> onReady(result, scene, minimized));
             } catch (Throwable t) {
                 Log.L.error("No se pudo iniciar Vivanet Pay", t);
@@ -187,12 +192,10 @@ public class MainApp extends Application implements UiContext.Shell {
     }
 
     private void notifyUser(String title, String message, boolean error) {
-        if (trayInstalled && !stage.isShowing()) {
+        if (trayInstalled) {
             tray.notify(title, message, error);
-        } else if (trayInstalled) {
-            tray.notify(title, message, error);
-            banner(title + ": " + message);
-        } else {
+        }
+        if (!trayInstalled || stage.isShowing()) {
             banner(title + ": " + message);
         }
     }

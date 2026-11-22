@@ -19,15 +19,30 @@ public final class Redactor {
     public static final String MASK = "***";
 
     private static final Pattern AUTH_HEADER = Pattern.compile("(?i)\\b(bearer|basic)\\s+[A-Za-z0-9._~+/=-]+");
+    /** {@code Authorization: <esquema> <credencial>} con cualquier esquema (Token, Digest, ApiKey...). */
+    /** Esquema Digest: sus parámetros (response, nonce...) ocupan el resto de la línea. */
+    private static final Pattern DIGEST = Pattern.compile("(?i)(\\bdigest\\s+)[^\\r\\n]+");
+    private static final Pattern AUTH_ANY_SCHEME = Pattern.compile(
+            "(?i)(\\bauthorization\\s*[:=]\\s*[\"']?)[A-Za-z][A-Za-z-]*\\s+[^\\s\"',;]+");
+    /**
+     * Pares clave/valor sensibles. Las claves "fuertes" se reconocen aunque lleven prefijo o sufijo
+     * ({@code clientSecret}, {@code refreshToken}, {@code x-vivanet-signature}, {@code webhook_secret_previous});
+     * las "débiles" ({@code code}, {@code nonce}, {@code pin}, {@code otp}) solo como palabra completa.
+     * El valor puede ir entre comillas dobles o simples (con espacios y escapes) o sin comillas.
+     */
     private static final Pattern SENSITIVE_KV = Pattern.compile(
-            "(?i)(?<![A-Za-z0-9_])(\"?(?:access_token|refresh_token|id_token|client_secret|token|password|passwd|pwd|secret"
-                    + "|api[_-]?key|apikey|authorization|signature|webhook[_-]?secret|code|nonce|pin)\"?\\s*[:=]\\s*\"?)"
-                    + "([^\"\\s,;&}]+)");
+            "(?i)((?:(?<![A-Za-z0-9_])(?:code|nonce|pin|otp)|[A-Za-z0-9_.-]{0,40}(?:token|secret|password|passwd|pwd|passphrase"
+                    + "|contrase[\u00f1n]a|api[_-]?key|apikey|authorization|signature|credential|cookie)[A-Za-z0-9_.-]{0,40})"
+                    + "[\"']?\\s*[:=]\\s*)"
+                    + "(?:\"((?:[^\"\\\\]|\\\\.)*)\"|'((?:[^'\\\\]|\\\\.)*)'|([^\"'\\s,;&}]+))");
     private static final Pattern GOOGLE_TOKEN = Pattern.compile("\\b(?:ya29\\.[A-Za-z0-9._-]+|1//[A-Za-z0-9._-]+)");
     private static final Pattern JWT = Pattern.compile("\\beyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]*");
-    private static final Pattern LONG_KEY = Pattern.compile("\\b[A-Za-z0-9_+/=]{40,}\\b");
+    private static final Pattern LONG_KEY = Pattern.compile("\\b[A-Za-z0-9_+/=-]{40,}\\b");
     private static final Pattern EMAIL = Pattern.compile("([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})");
     private static final Pattern LONG_NUMBER = Pattern.compile("(?<![\\dA-Za-z.\\-])\\d{4,}(\\d{4})(?![\\dA-Za-z\\-])");
+    /** Teléfonos con separadores: {@code +57 300 123 4567}, {@code 300-123-4567}. */
+    private static final Pattern PHONE = Pattern.compile(
+            "(?<![\\dA-Za-z.\\-])(?:\\+?\\d{1,3}[ -])?\\d{3}[ -]\\d{3}[ -](\\d{4})(?![\\dA-Za-z\\-])");
 
 
     private Redactor() {
@@ -38,12 +53,18 @@ public final class Redactor {
         if (input == null || input.isEmpty()) {
             return input;
         }
-        String s = AUTH_HEADER.matcher(input).replaceAll("$1 " + MASK);
-        s = SENSITIVE_KV.matcher(s).replaceAll(m -> Matcher.quoteReplacement(m.group(1) + MASK));
+        String s = DIGEST.matcher(input).replaceAll("$1" + MASK);
+        s = AUTH_HEADER.matcher(s).replaceAll("$1 " + MASK);
+        s = AUTH_ANY_SCHEME.matcher(s).replaceAll("$1" + MASK);
+        s = SENSITIVE_KV.matcher(s).replaceAll(m -> {
+            String q = m.group(2) != null ? "\"" : m.group(3) != null ? "'" : "";
+            return Matcher.quoteReplacement(m.group(1) + q + MASK + q);
+        });
         s = GOOGLE_TOKEN.matcher(s).replaceAll(MASK);
         s = JWT.matcher(s).replaceAll(MASK);
         s = LONG_KEY.matcher(s).replaceAll(MASK);
         s = EMAIL.matcher(s).replaceAll("$1***@$2");
+        s = PHONE.matcher(s).replaceAll(m -> MASK + m.group(1));
         s = LONG_NUMBER.matcher(s).replaceAll(m -> MASK + m.group(1));
         return s;
     }

@@ -1,0 +1,66 @@
+# Fixtures versionados v1 de parsers. Formato: id|fuente|remitente|asunto|texto (\n = salto)|esperado
+# esperado: ok:parserId:monto:remitente:referencia | low:monto | invalid | none   (campos vacios = no se comprueba / null)
+# --- Nequi push: aceptados ---
+nq-001|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió $50.000|ok:nequi-android-v1:50000:JUAN PEREZ:
+nq-002|ANDROID_NEQUI|com.nequi.MobileApp||Recibiste $1.250.000 de MARÍA GÓMEZ|ok:nequi-android-v1:1250000:MARÍA GÓMEZ:
+nq-003|ANDROID_NEQUI|com.nequi.MobileApp|Nequi|¡Te llegó plata! Pedro Pablo Núñez te envió $ 20.000,00|ok:nequi-android-v1:20000:Pedro Pablo Núñez:
+nq-004|ANDROID_NEQUI|com.nequi.MobileApp||ANA MARIA RODRIGUEZ TE ENVIO $75.500|ok:nequi-android-v1:75500:ANA MARIA RODRIGUEZ:
+nq-005|ANDROID_NEQUI|com.nequi.MobileApp||Luis Ñañez te envio COP 50000|ok:nequi-android-v1:50000:Luis Ñañez:
+nq-006|ANDROID_NEQUI|com.nequi.MobileApp||Recibiste COP 120.000 de CARLOS ANDRES DE LA HOZ en tu Nequi|ok:nequi-android-v1:120000:CARLOS ANDRES DE LA HOZ:
+nq-007|ANDROID_NEQUI|com.nequi.MobileApp||Sofía Vergara te envió $ 50.000|ok:nequi-android-v1:50000:Sofía Vergara:
+nq-008|ANDROID_NEQUI|com.nequi.MobileApp||Recibiste $ 2.500.000 de EMPRESA LTDA. Ref: M1234567|ok:nequi-android-v1:2500000:EMPRESA LTDA:M1234567
+nq-009|ANDROID_NEQUI|com.nequi.MobileApp|Nequi|Nequi: Daniela Ospina te envió $15.000. Referencia 998877|ok:nequi-android-v1:15000:Daniela Ospina:998877
+nq-010|ANDROID_NEQUI|com.nequi.MobileApp||Te enviaron $30.000|ok:nequi-android-v1:30000::
+nq-011|ANDROID_NEQUI|com.nequi.MobileApp||JOSÉ MUÑOZ te envió $9.999.999|ok:nequi-android-v1:9999999:JOSÉ MUÑOZ:
+nq-012|ANDROID_NEQUI||Nequi|Ricardo Mora te envió 50.000 pesos a tu Nequi|ok:nequi-android-v1:50000:Ricardo Mora:
+nq-013|ANDROID_NEQUI|com.nequi.MobileApp||Recibiste $ 1.000.000,00 de LAURA CAMILA|ok:nequi-android-v1:1000000:LAURA CAMILA:
+nq-014|ANDROID_NEQUI|com.nequi.MobileApp||¡Te llegó plata!\nMiguel Ángel Torres te envió $200.000\nDisponible: nada|ok:nequi-android-v1:200000:Miguel Ángel Torres:
+nq-015|ANDROID_NEQUI|com.nequi.MobileApp||Recibiste $50.000 de JUAN. Comprobante 4455667|ok:nequi-android-v1:50000:JUAN:4455667
+# --- Nequi push: descartados ---
+nq-020|ANDROID_NEQUI|com.nequi.MobileApp||Enviaste $50.000 a JUAN PEREZ|none
+nq-021|ANDROID_NEQUI|com.nequi.MobileApp||Pagaste $12.000 en TIENDA D1|none
+nq-022|ANDROID_NEQUI|com.nequi.MobileApp||Retiraste $100.000 del cajero|none
+nq-023|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te pidió $50.000|none
+nq-024|ANDROID_NEQUI|com.nequi.MobileApp||Tienes una solicitud de dinero de ANA por $40.000|none
+nq-025|ANDROID_NEQUI|com.nequi.MobileApp||Tu código de seguridad es 123456. No lo compartas|none
+nq-026|ANDROID_NEQUI|com.nequi.MobileApp||Recordatorio: recuerda pagar tu recibo de $80.000|none
+nq-027|ANDROID_NEQUI|com.nequi.MobileApp||¡Gana $1.000.000 con Nequi! Participa en el sorteo|none
+nq-028|ANDROID_NEQUI|com.nequi.MobileApp||Hola, ya puedes usar tu Nequi en más comercios|none
+nq-029|ANDROID_NEQUI|com.nequi.MobileApp||JUAN te envió $50.000. Pagaste $20.000 en otra parte|none
+nq-030|ANDROID_NEQUI|com.nequi.MobileApp||Tienes un cobro pendiente de $60.000|none
+# --- Nequi push: montos problemáticos ---
+nq-040|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió $50,000|low:50000
+nq-041|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió $0|invalid
+nq-042|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió -$50.000|invalid
+nq-043|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió $1.25.000|none
+nq-044|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió $50.000,50|none
+nq-045|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió $50,000.00|low:50000
+nq-046|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió $abc|none
+# --- Nequi push: suplantación / ruido ---
+nq-050|ANDROID_NEQUI|com.evil.sms||JUAN PEREZ te envió $50.000|low:50000
+nq-051|ANDROID_NEQUI|com.nequi.MobileApp||JUAN PEREZ te envió $50.000 reclama en http://nequi-pagos.xyz/x|low:50000
+nq-052|ANDROID_NEQUI|com.nequi.MobileApp||JUAN te envió $50.000 y MARIA te envió $90.000|low:50000
+nq-053|ANDROID_NEQUI|com.nequi.MobileApp||ÚLTIMA HORA!!! %%% $$$ ¿¿¿ ???|none
+nq-054|ANDROID_NEQUI|com.nequi.MobileApp||   |none
+# --- Gmail Nequi ---
+ne-001|GMAIL|Nequi <no-responder@nequi.com.co>|Recibiste dinero|Hola. JUAN PEREZ te envió $50.000 a tu Nequi.|ok:nequi-email-v1:50000:JUAN PEREZ:
+ne-002|GMAIL|notificaciones@nequi.com.co|¡Te llegó plata!|Recibiste $ 1.250.000,00 de MARÍA GÓMEZ. Referencia M9988776|ok:nequi-email-v1:1250000:MARÍA GÓMEZ:M9988776
+ne-003|GMAIL|Nequi <alertas@mail.nequi.com.co>|Nequi|Recibiste $80.000 de ÁLVARO ÑUSTES|ok:nequi-email-v1:80000:ÁLVARO ÑUSTES:
+ne-004|GMAIL|Nequi <no-responder@gmail.com>|Recibiste dinero|JUAN PEREZ te envió $50.000 a tu Nequi.|low:50000
+ne-005|GMAIL|Nequi <x@nequi.com.co.evil.com>|Recibiste dinero|JUAN PEREZ te envió $50.000.|low:50000
+ne-006|GMAIL|x@evilnequi.com.co|Nequi|JUAN PEREZ te envió $50.000.|low:50000
+ne-007|GMAIL|no-responder@nequi.com.co|Tu extracto|Enviaste $50.000 a JUAN PEREZ|none
+# --- Gmail Bancolombia ---
+bc-001|GMAIL|alertasynotificaciones@bancolombia.com.co|Alertas y Notificaciones|Bancolombia le informa que recibió una transferencia por $50.000 de JUAN PEREZ en su cuenta *1234.|ok:bancolombia-email-v1:50000:JUAN PEREZ:
+bc-002|GMAIL|alertasynotificaciones@bancolombia.com.co|Alertas|Recibiste una transferencia de MARÍA GÓMEZ por $ 1.250.000,00 en tu cuenta de ahorros *5678. Referencia 123456789|ok:bancolombia-email-v1:1250000:MARÍA GÓMEZ:123456789
+bc-003|GMAIL|alertas@bancolombia.com.co|Alertas|Bancolombia le informa que recibió un pago por COP 300.000 de NEGOCIOS DEL CAFÉ S.A.S en su cuenta|ok:bancolombia-email-v1:300000:NEGOCIOS DEL CAFÉ S:
+bc-004|GMAIL|alertas@bancolombia.com.co|Alertas|Recibiste una transferencia por $75.000. Cuenta *1234|ok:bancolombia-email-v1:75000::
+bc-005|GMAIL|alertas@bancolombia.com.co|Alertas|Realizaste una transferencia por $50.000 a JUAN PEREZ|none
+bc-006|GMAIL|alertas@bancolombia.com.co|Alertas|Compra por $50.000 en TIENDA. Se debitó de tu cuenta|none
+bc-007|GMAIL|alertas@bancolombia.com.co|Alertas|Código de seguridad 998877 para tu transacción|none
+bc-008|GMAIL|alertas@bancolombia-seguro.co|Bancolombia|Bancolombia le informa que recibió una transferencia por $50.000 de JUAN PEREZ en su cuenta|low:50000
+bc-009|GMAIL|Bancolombia <alertas@bancolombia.com.co>|Alertas|Bancolombia le informa que recibió una transferencia por $50,000 de JUAN PEREZ en su cuenta|low:50000
+bc-010|GMAIL|alertas@bancolombia.com.co|Promo|Aprovecha tu nuevo crédito de libre inversión|none
+# --- Otras fuentes ---
+ot-001|ANDROID_OTHER|com.daviplata||JUAN te envió $50.000|none
+ot-002|GMAIL|noreply@davivienda.com|DaviPlata|Recibiste $50.000 de JUAN PEREZ|none

@@ -1,0 +1,1 @@
+schemaVersion=1&eventId=md-[system_time]-[v=vivanet_seq]&source=ANDROID_NEQUI&app=Nequi&title=[notification_title]&text=[notification_text]&capturedAt=[system_time]&device=Celular%20caja

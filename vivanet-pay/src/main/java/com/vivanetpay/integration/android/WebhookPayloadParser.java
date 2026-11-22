@@ -73,6 +73,70 @@ final class WebhookPayloadParser {
         if (root == null || !root.isObject()) {
             throw new InvalidPayloadException("malformed_json", "Se esperaba un objeto JSON");
         }
+        return parseObject(root, now);
+    }
+
+    /**
+     * Formato alternativo ESTRICTO {@code application/x-www-form-urlencoded}: los mismos campos y reglas que el JSON
+     * (sin campos desconocidos ni repetidos, UTF-8, secuencias %XX válidas). Existe porque el JSON armado por
+     * MacroDroid se rompe si la notificación trae comillas o saltos de línea; con formulario el valor se codifica.
+     */
+    WebhookPayload parseForm(byte[] body, Instant now) throws InvalidPayloadException {
+        String s;
+        try {
+            s = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(body)).toString();
+        } catch (java.nio.charset.CharacterCodingException e) {
+            throw new InvalidPayloadException("malformed_form", "El cuerpo no es UTF-8 válido");
+        }
+        s = s.replaceAll("[\\r\\n]+$", ""); // un salto de línea final (copiar/pegar) no es parte del último valor
+        com.fasterxml.jackson.databind.node.ObjectNode root = mapper.createObjectNode();
+        if (!s.isEmpty()) {
+            for (String pair : s.split("&", -1)) {
+                if (pair.isEmpty()) {
+                    continue; // tolera '&' final
+                }
+                int eq = pair.indexOf('=');
+                String rawKey = eq < 0 ? pair : pair.substring(0, eq);
+                String rawVal = eq < 0 ? "" : pair.substring(eq + 1);
+                String key = decode(rawKey);
+                String val = decode(rawVal);
+                if (!ALLOWED.contains(key)) {
+                    throw new InvalidPayloadException("unknown_field", "Campo no permitido: " + safeName(key));
+                }
+                if (root.has(key)) {
+                    throw new InvalidPayloadException("malformed_form", "Campo repetido: " + safeName(key));
+                }
+                if (key.equals("schemaVersion")) {
+                    if (!val.strip().matches("\\d{1,9}")) {
+                        throw new InvalidPayloadException("invalid_schema", "schemaVersion obligatorio (entero)");
+                    }
+                    root.put(key, Integer.parseInt(val.strip()));
+                } else if (key.equals("test")) {
+                    String v = val.strip().toLowerCase(java.util.Locale.ROOT);
+                    if (!v.equals("true") && !v.equals("false")) {
+                        throw new InvalidPayloadException("invalid_schema", "test debe ser booleano");
+                    }
+                    root.put(key, v.equals("true"));
+                } else {
+                    root.put(key, val);
+                }
+            }
+        }
+        return parseObject(root, now);
+    }
+
+    private static String decode(String s) throws InvalidPayloadException {
+        try {
+            return java.net.URLDecoder.decode(s, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidPayloadException("malformed_form", "Codificación %XX inválida");
+        }
+    }
+
+    private WebhookPayload parseObject(JsonNode root, Instant now) throws InvalidPayloadException {
         for (Iterator<String> it = root.fieldNames(); it.hasNext(); ) {
             String f = it.next();
             if (!ALLOWED.contains(f)) {

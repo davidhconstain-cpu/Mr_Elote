@@ -12,6 +12,7 @@ import com.vivanetpay.application.IngestionService;
 import com.vivanetpay.application.ReviewService;
 import com.vivanetpay.integration.ConnectorRegistry;
 import com.vivanetpay.licensing.LicenseService;
+import com.vivanetpay.parsing.DefaultParsers;
 import com.vivanetpay.parsing.ParserRegistry;
 import com.vivanetpay.parsing.PaymentParser;
 import com.vivanetpay.persistence.AuditRepository;
@@ -51,7 +52,7 @@ import java.util.Objects;
  * AppContext ctx = AppContext.builder(AppConfig.load())
  *         .speechEngine(new WindowsSpeechEngine())     // agente UI/voz
  *         .secretStore(new WindowsCredentialStore())    // agente seguridad
- *         .parser(new NequiPushParser())                // agente parsers
+ *         .parsers(DefaultParsers.all())                // opcional: es el valor por defecto
  *         .build();
  * </pre>
  */
@@ -101,7 +102,8 @@ public final class AppContext implements AutoCloseable {
         this.reportingQueries = new ReportingQueries(database);
         this.maintenance = new DatabaseMaintenance(database, clock);
         this.eventBus = new AppEventBus();
-        this.parserRegistry = new ParserRegistry(b.parsers);
+        // Sin parsers explícitos se usan los reales del MVP (nadie debe olvidarlos); las pruebas pueden sobrescribirlos.
+        this.parserRegistry = new ParserRegistry(b.parsers.isEmpty() ? DefaultParsers.all() : b.parsers);
         this.validationPolicy = b.policy != null ? b.policy : new ConservativeValidationPolicy(config.policyConfig());
         this.speechEngine = b.speechEngine != null ? b.speechEngine : new LoggingSpeechEngine();
         AnnouncementQueue queue = new AnnouncementQueue(speechEngine, config.voiceSettings(), clock,
@@ -150,6 +152,7 @@ public final class AppContext implements AutoCloseable {
         public Builder secretStore(SecretStore v) { this.secretStore = v; return this; }
         /** Política (por defecto {@link ConservativeValidationPolicy} con {@link AppConfig#policyConfig()}). */
         public Builder validationPolicy(ValidationPolicy v) { this.policy = v; return this; }
+        /** Si no se registra ningún parser se usan {@link DefaultParsers#all()}; registrar alguno los sustituye. */
         public Builder parser(PaymentParser p) { this.parsers.add(Objects.requireNonNull(p)); return this; }
         public Builder parsers(List<? extends PaymentParser> ps) { ps.forEach(this::parser); return this; }
 

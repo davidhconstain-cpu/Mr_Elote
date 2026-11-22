@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
  * (p. ej. un conector que descargue por HTTPS saliente los eventos encolados en el relay) debe reutilizar este
  * procesador tal cual, de modo que autenticación, anti-replay, esquema e idempotencia sean idénticos.
  * <p>
- * Orden de verificación: ruta → tasa por IP (429) → método (405) → pausa (503) → Content-Type (415) →
+ * Orden de verificación: ruta → tasa por IP (429) → método (405) → pausa (503) → Content-Type JSON o formulario (415) →
  * tamaño (413) → autenticación (401) → nonce (409) → esquema (400) → prueba (200 sin núcleo) → ingesta (202/200).
  * Los rechazos se auditan en log con motivo, IP, método y ruta; NUNCA cuerpo, firma, token ni nonce.
  */
@@ -135,7 +135,9 @@ public final class WebhookRequestProcessor {
         if (paused.getAsBoolean()) {
             return reject(req, 503, "paused", Map.of("Retry-After", "60"));
         }
-        if (!isJson(req.single("Content-Type"))) {
+        String contentType = req.single("Content-Type");
+        boolean form = isForm(contentType);
+        if (!form && !isJson(contentType)) {
             return reject(req, 415, "unsupported_media_type", null);
         }
         String cl = req.single("Content-Length");
@@ -179,7 +181,7 @@ public final class WebhookRequestProcessor {
         Instant now = clock.instant();
         WebhookPayload payload;
         try {
-            payload = parser.parse(raw, now);
+            payload = form ? parser.parseForm(raw, now) : parser.parse(raw, now);
         } catch (WebhookPayloadParser.InvalidPayloadException e) {
             return reject(req, 400, e.code, null, e.getMessage());
         }
@@ -324,12 +326,21 @@ public final class WebhookRequestProcessor {
         return ok ? null : "bad_token";
     }
 
+    /** {@code application/x-www-form-urlencoded} (charset ausente o utf-8): alternativa a JSON para MacroDroid. */
+    private static boolean isForm(String contentType) {
+        return mediaTypeIs(contentType, "application/x-www-form-urlencoded");
+    }
+
     private static boolean isJson(String contentType) {
+        return mediaTypeIs(contentType, "application/json");
+    }
+
+    private static boolean mediaTypeIs(String contentType, String type) {
         if (contentType == null) {
             return false;
         }
         String[] parts = contentType.split(";");
-        if (!parts[0].trim().equalsIgnoreCase("application/json")) {
+        if (!parts[0].trim().equalsIgnoreCase(type)) {
             return false;
         }
         for (int i = 1; i < parts.length; i++) {

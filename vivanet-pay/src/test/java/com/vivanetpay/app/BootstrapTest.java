@@ -35,8 +35,15 @@ class BootstrapTest {
         try {
             assertThat(r.databaseHealthy()).isTrue();
             assertThat(r.license().status()).isEqualTo(LicenseStatus.PRUEBA_ACTIVA);
-            assertThat(r.startedConnectors()).containsExactly("android-principal");
-            assertThat(r.missingProviders()).containsExactly(ConnectorType.GMAIL);
+            // Android: en test-classes el SPI de FakeConnectorProvider tiene prioridad (no abre puertos reales).
+            // Gmail: proveedor REAL sin credenciales -> debe quedar REQUIERE_AUTORIZACION sin tocar la red.
+            assertThat(r.startedConnectors()).containsExactlyInAnyOrder("android-principal", "gmail-principal");
+            assertThat(r.missingProviders()).isEmpty();
+            assertThat(ctx.connectorRegistry().get("android-principal").orElseThrow())
+                    .isInstanceOf(FakeConnectorProvider.FakeConnector.class);
+            assertThat(ctx.connectorRegistry().get("gmail-principal").orElseThrow().type()).isEqualTo(ConnectorType.GMAIL);
+            assertThat(ctx.connectorRepository().find("gmail-principal").orElseThrow().status())
+                    .isEqualTo(ConnectorStatus.REQUIERE_AUTORIZACION);
             try (var files = Files.list(config.backupsDir())) {
                 assertThat(files.count()).as("respaldo de inicio").isEqualTo(1);
             }

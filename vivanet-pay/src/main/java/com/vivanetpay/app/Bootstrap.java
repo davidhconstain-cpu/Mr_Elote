@@ -44,7 +44,10 @@ public final class Bootstrap {
     }
 
     public static Result start(AppConfig config) {
-        return start(AppContext.builder(config));
+        // Arranque de producción sin UI: voz y almacén de secretos propios del SO; parsers reales por defecto.
+        return start(AppContext.builder(config)
+                .speechEngine(com.vivanetpay.voice.SpeechEngines.create())
+                .secretStore(com.vivanetpay.security.SecretStores.forCurrentOs(config.dataDir())));
     }
 
     public static Result start(AppContext.Builder builder) {

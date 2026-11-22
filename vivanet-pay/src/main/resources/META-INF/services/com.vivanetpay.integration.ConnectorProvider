@@ -1,1 +1,2 @@
 com.vivanetpay.integration.gmail.GmailConnectorProvider
+com.vivanetpay.integration.android.AndroidWebhookConnectorProvider

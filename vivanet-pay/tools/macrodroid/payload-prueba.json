@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "eventId": "prueba-[system_time]-[v=vivanet_seq]",
+  "source": "ANDROID_NEQUI",
+  "app": "Nequi",
+  "title": "Prueba Vivanet Pay",
+  "text": "Mensaje de prueba desde MacroDroid",
+  "capturedAt": "[system_time]",
+  "device": "Celular caja",
+  "test": true
+}

@@ -84,4 +84,28 @@ public final class Formats {
             case PAUSADO -> "La captura está en pausa. Pulsa \"Reanudar\" para volver a recibir pagos.";
         };
     }
+
+    /**
+     * Motivo legible para la tabla (el texto técnico completo queda en el detalle). Los motivos desconocidos se
+     * muestran tal cual.
+     */
+    public static String friendlyReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return "";
+        }
+        String r = reason.trim();
+        if (r.startsWith("Ninguna plantilla") || r.contains("no reconocido") || r.startsWith("Formato no reconocido")) {
+            return "No se reconoció el formato del mensaje";
+        }
+        if (r.startsWith("Importe malformado")) {
+            return "No se pudo leer el importe del mensaje";
+        }
+        if (r.startsWith("Posible pago: requiere verificación manual")) {
+            return "Posible pago: verifícalo en tu banco";
+        }
+        if (r.startsWith("Posible duplicado del evento")) {
+            return "Posible duplicado de un pago ya registrado";
+        }
+        return r;
+    }
 }

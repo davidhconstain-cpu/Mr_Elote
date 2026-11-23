@@ -118,7 +118,14 @@ public final class MainWindow {
         }
         currentId = id;
         center.getChildren().setAll(s.node());
-        buttons.get(id).setSelected(true);
+        ToggleButton selected = buttons.get(id);
+        selected.setSelected(true);
+        // Si el foco quedó en otro botón del menú (p. ej. al navegar por atajo o desde un botón), lo movemos al
+        // activo: el contorno de foco no debe señalar una pantalla que no es la actual.
+        Scene scene = root.getScene();
+        if (scene != null && buttons.containsValue(scene.getFocusOwner()) && scene.getFocusOwner() != selected) {
+            selected.requestFocus();
+        }
         s.refresh();
     }
 

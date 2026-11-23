@@ -9,7 +9,6 @@ import com.vivanetpay.reporting.DashboardSummary;
 import com.vivanetpay.ui.viewmodel.DashboardModel;
 import com.vivanetpay.ui.viewmodel.DashboardViewModel;
 import com.vivanetpay.ui.viewmodel.HistoryViewModel;
-import javafx.application.ColorScheme;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -59,10 +58,39 @@ class UiModernizationTest {
     }
 
     @Test
-    void systemColorSchemeMapsToDarkOnlyForDark() {
-        assertThat(Theme.isDark(ColorScheme.DARK)).isTrue();
-        assertThat(Theme.isDark(ColorScheme.LIGHT)).isFalse();
-        assertThat(Theme.isDark(null)).isFalse();
+    void themeModeResolvesAgainstSystem() {
+        assertThat(Theme.resolve(Theme.Mode.AUTOMATICO, true)).isTrue();
+        assertThat(Theme.resolve(Theme.Mode.AUTOMATICO, false)).isFalse();
+        assertThat(Theme.resolve(Theme.Mode.CLARO, true)).isFalse();
+        assertThat(Theme.resolve(Theme.Mode.OSCURO, false)).isTrue();
+        assertThat(Theme.Mode.parse("OSCURO")).isEqualTo(Theme.Mode.OSCURO);
+        assertThat(Theme.Mode.parse("claro")).isEqualTo(Theme.Mode.CLARO);
+        assertThat(Theme.Mode.parse("basura")).isEqualTo(Theme.Mode.AUTOMATICO);
+        assertThat(Theme.Mode.parse(null)).isEqualTo(Theme.Mode.AUTOMATICO);
+    }
+
+    @Test
+    void parsesWindowsRegistryOutputAndFailsToLight() {
+        String dark = "\r\nHKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize\r\n"
+                + "    AppsUseLightTheme    REG_DWORD    0x0\r\n\r\n";
+        assertThat(SystemTheme.parseAppsUseLightTheme(dark)).isTrue();
+        assertThat(SystemTheme.parseAppsUseLightTheme(dark.replace("0x0", "0x1"))).isFalse();
+        assertThat(SystemTheme.parseAppsUseLightTheme("ERROR: no se pudo encontrar la clave")).isFalse();
+        assertThat(SystemTheme.parseAppsUseLightTheme("")).isFalse();
+        assertThat(SystemTheme.parseAppsUseLightTheme(null)).isFalse();
+        assertThat(SystemTheme.queryArgs()).contains("query", SystemTheme.KEY, "/v", "AppsUseLightTheme");
+        assertThat(SystemTheme.queryArgs().get(0)).endsWith("reg.exe");
+    }
+
+    @Test
+    void friendlyReasonsHideTechnicalText() {
+        assertThat(Formats.friendlyReason("Ninguna plantilla de nequi-android-v1 coincide"))
+                .isEqualTo("No se reconoció el formato del mensaje");
+        assertThat(Formats.friendlyReason("Importe malformado: '1.2' (plantilla x)")).startsWith("No se pudo leer");
+        assertThat(Formats.friendlyReason("Posible pago: requiere verificación manual en el canal oficial (política provisional DP-01)"))
+                .isEqualTo("Posible pago: verifícalo en tu banco");
+        assertThat(Formats.friendlyReason("otro motivo")).isEqualTo("otro motivo");
+        assertThat(Formats.friendlyReason(null)).isEmpty();
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.vivanetpay.persistence.SettingsRepository;
 public final class UiPreferences {
     public static final String MINIMIZE_TO_TRAY = "ui.minimizeToTray";
     public static final String START_WITH_WINDOWS = "ui.startWithWindows";
+    public static final String THEME = "ui.theme";
     public static final String VOICE_ENABLED = "voice.enabled";
     public static final String VOICE_VOLUME = "voice.volume";
     public static final String VOICE_RATE = "voice.rate";
@@ -18,6 +19,10 @@ public final class UiPreferences {
 
     public boolean getBoolean(String key, boolean def) {
         return repo.get(key).map(Boolean::parseBoolean).orElse(def);
+    }
+
+    public String getString(String key, String def) {
+        return repo.get(key).orElse(def);
     }
 
     public int getInt(String key, int def) {

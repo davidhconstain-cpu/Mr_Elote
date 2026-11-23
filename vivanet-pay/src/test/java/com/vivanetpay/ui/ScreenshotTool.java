@@ -80,7 +80,7 @@ public class ScreenshotTool extends Application {
             return;
         }
         String[] j = jobs.get(n);
-        Theme.setDark(Boolean.parseBoolean(j[1]));
+        Theme.setMode(Boolean.parseBoolean(j[1]) ? Theme.Mode.OSCURO : Theme.Mode.CLARO);
         w.show(j[0]);
         PauseTransition p = new PauseTransition(Duration.millis(1200));
         p.setOnFinished(e -> {

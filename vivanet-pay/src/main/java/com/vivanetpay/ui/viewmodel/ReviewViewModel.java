@@ -18,7 +18,7 @@ public final class ReviewViewModel {
         HistoryRow r = item.row();
         return new Row(r.eventId(), Formats.time(r.occurredAt()), r.bank() == null ? Formats.NONE : r.bank(),
                 Formats.money(r.amount()), Formats.status(r.status()),
-                r.statusReason() == null ? "" : r.statusReason(), item);
+                Formats.friendlyReason(r.statusReason()), item);
     }
 
     /** @return el motivo recortado; lanza si es vacío (el descarte exige motivo). */

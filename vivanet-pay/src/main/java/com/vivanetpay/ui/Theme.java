@@ -1,6 +1,5 @@
 package com.vivanetpay.ui;
 
-import javafx.application.ColorScheme;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
@@ -13,45 +12,95 @@ import javafx.scene.control.DialogPane;
 import java.net.URL;
 
 /**
- * Tema claro/oscuro. Sigue el esquema de color del sistema (Windows: "Modo de la aplicación") mediante
- * {@link Platform#getPreferences()} (JavaFX 22+) y lo refleja con la clase CSS {@code dark} en la raíz de cada
- * escena; los colores viven como "looked-up colors" ({@code -vp-*}) en {@code /ui/vivanet.css}.
+ * Tema claro/oscuro. El modo ({@link Mode}) es automático (sigue al sistema), claro u oscuro, y se guarda en las
+ * preferencias de la UI. En automático se usa el modo de aplicaciones del sistema ({@link SystemTheme}: en
+ * JavaFX 22+ se sigue en vivo por reflexión; en la línea LTS 21 se lee una vez el registro de Windows al
+ * arrancar). El resultado se refleja con la clase CSS {@code dark} en la raíz de cada escena; los colores viven
+ * como "looked-up colors" ({@code -vp-*}) en {@code /ui/vivanet.css}.
  * <p>
  * Debe usarse desde el hilo de JavaFX.
  */
 public final class Theme {
+    /** Preferencia del usuario. */
+    public enum Mode {
+        AUTOMATICO("Automático"), CLARO("Claro"), OSCURO("Oscuro");
+
+        private final String label;
+
+        Mode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        /** Valor guardado -> modo; cualquier valor desconocido o nulo = automático. */
+        public static Mode parse(String stored) {
+            if (stored != null) {
+                for (Mode m : values()) {
+                    if (m.name().equalsIgnoreCase(stored.trim())) {
+                        return m;
+                    }
+                }
+            }
+            return AUTOMATICO;
+        }
+    }
+
     static final String DARK_CLASS = "dark";
     private static final String STYLESHEET = "/ui/vivanet.css";
 
     private static final ReadOnlyBooleanWrapper DARK = new ReadOnlyBooleanWrapper(false);
+    private static Mode mode = Mode.AUTOMATICO;
+    private static boolean systemDark;
     private static boolean listening;
 
     private Theme() {
     }
 
-    /** Traduce el esquema del sistema: solo {@link ColorScheme#DARK} es oscuro (null = claro, valor por defecto). */
-    public static boolean isDark(ColorScheme scheme) {
-        return scheme == ColorScheme.DARK;
+    /** Regla pura: ¿hay que usar oscuro con este modo y este estado del sistema? */
+    public static boolean resolve(Mode mode, boolean systemDark) {
+        return switch (mode) {
+            case OSCURO -> true;
+            case CLARO -> false;
+            case AUTOMATICO -> systemDark;
+        };
     }
 
     public static ReadOnlyBooleanProperty darkProperty() {
         return DARK.getReadOnlyProperty();
     }
 
-    /** Fuerza el tema (herramienta de capturas y pruebas). */
-    static void setDark(boolean dark) {
-        DARK.set(dark);
+    public static Mode mode() {
+        return mode;
     }
 
-    /** Empieza a seguir el esquema del sistema (idempotente). */
+    public static void setMode(Mode m) {
+        mode = m == null ? Mode.AUTOMATICO : m;
+        DARK.set(resolve(mode, systemDark));
+    }
+
+    /** Fija el estado del sistema (herramienta de capturas y pruebas). */
+    static void setSystemDark(boolean dark) {
+        systemDark = dark;
+        DARK.set(resolve(mode, systemDark));
+    }
+
+    /** Empieza a seguir el modo del sistema (idempotente). Solo bloquea en un hilo virtual. */
     public static void followSystem() {
         if (listening) {
             return;
         }
         listening = true;
-        Platform.Preferences prefs = Platform.getPreferences();
-        DARK.set(isDark(prefs.getColorScheme()));
-        prefs.colorSchemeProperty().addListener((o, was, now) -> DARK.set(isDark(now)));
+        if (!SystemTheme.listenWithPlatformPreferences(Theme::setSystemDark)) {
+            Thread.ofVirtual().name("vivanet-theme").start(() -> {
+                boolean dark = SystemTheme.readWindowsDark();
+                if (dark) {
+                    Platform.runLater(() -> setSystemDark(true));
+                }
+            });
+        }
     }
 
     /** Aplica hoja de estilos y clase de tema a una escena; se mantiene al día si cambia el tema del sistema. */

@@ -12,7 +12,7 @@ mvn javafx:run                                  # requiere com.vivanetpay.ui.Mai
 ```
 
 - Java 21, UTF-8. Las pruebas corren con `-Duser.timezone=UTC` para detectar errores de zona horaria.
-- Todas las dependencias del equipo ya están en `pom.xml` (JavaFX 21.0.5, sqlite-jdbc 3.47.1.0, slf4j 2.0.16, logback 1.5.12, Jackson 2.18.2, google-api-client 2.7.0, google-oauth-client-jetty 1.36.0, gmail v1-rev20240520-2.0.0, JUnit 5.11.3, AssertJ 3.26.3). No cambiar versiones sin coordinarlo.
+- Todas las dependencias del equipo ya están en `pom.xml` (JavaFX: ver `docs/MODERNIZACION_FRONTEND.md`; backend a nov-2026: sqlite-jdbc 3.54.1.0, slf4j 2.0.20, logback 1.6.8, **Jackson 3.3.0 (`tools.jackson.*`)**, google-api-client 2.9.2, google-oauth-client 1.39.0, gmail v1-rev20261106-2.9.2, JUnit 6.1.3, AssertJ 3.27.7; detalle en `docs/MODERNIZACION_BACKEND.md`). `maven-enforcer-plugin` exige JDK ≥ 21, Maven ≥ 3.9.6 y `requireUpperBoundDeps`. No cambiar versiones sin coordinarlo.
 - Las clases de dependencias de JavaFX se resuelven para el SO donde corre Maven; para empaquetar Windows usar `-Djavafx.platform=win`.
 
 ## Mapa de paquetes (`com.vivanetpay`)

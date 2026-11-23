@@ -128,6 +128,8 @@ public class MainApp extends Application implements UiContext.Shell {
             applySavedVoiceSettings();
             return Boolean.TRUE;
         }, ok -> updateTray(), e -> Log.L.warn("No se pudieron leer las preferencias: {}", e.getMessage()));
+        Background.run(() -> Theme.Mode.parse(ctx.prefs.getString(UiPreferences.THEME, null)), Theme::setMode,
+                e -> Log.L.warn("No se pudo leer el tema guardado: {}", e.getMessage()));
         updateTray();
         if (!result.databaseHealthy()) {
             banner("La base de datos tiene problemas de integridad. Ve a Diagnóstico y restaura un respaldo.");

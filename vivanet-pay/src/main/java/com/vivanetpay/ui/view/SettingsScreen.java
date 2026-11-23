@@ -2,6 +2,7 @@ package com.vivanetpay.ui.view;
 
 import com.vivanetpay.domain.AppTime;
 import com.vivanetpay.ui.Background;
+import com.vivanetpay.ui.Theme;
 import com.vivanetpay.ui.Ui;
 import com.vivanetpay.ui.UiContext;
 import com.vivanetpay.ui.UiPreferences;
@@ -9,8 +10,11 @@ import com.vivanetpay.ui.WindowsStartup;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
 /** Configuración (IDD §9.1). */
 public final class SettingsScreen implements Screen {
@@ -18,6 +22,7 @@ public final class SettingsScreen implements Screen {
     private final VBox root = new VBox(12);
     private final CheckBox startup = new CheckBox("Iniciar Vivanet Pay al iniciar sesión en Windows");
     private final CheckBox tray = new CheckBox("Al cerrar la ventana, seguir funcionando en la bandeja del sistema");
+    private final ComboBox<Theme.Mode> theme = new ComboBox<>();
     private final Label startupNote = Ui.muted("");
     private boolean loading;
 
@@ -35,7 +40,33 @@ public final class SettingsScreen implements Screen {
                         ctx.shell::onPreferencesChanged, err -> Ui.error("No se pudo guardar", Ui.describe(err)));
             }
         });
+        theme.getItems().setAll(Theme.Mode.values());
+        theme.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Theme.Mode m) {
+                return m == null ? "" : m.label();
+            }
+
+            @Override
+            public Theme.Mode fromString(String s) {
+                return Theme.Mode.parse(s);
+            }
+        });
+        theme.setValue(Theme.mode());
+        Ui.named(theme, "Tema de la aplicación");
+        theme.setOnAction(e -> {
+            Theme.Mode m = theme.getValue();
+            if (!loading && m != null) {
+                Theme.setMode(m);
+                Background.run(() -> ctx.prefs.put(UiPreferences.THEME, m.name()), () -> { },
+                        err -> Ui.error("No se pudo guardar", Ui.describe(err)));
+            }
+        });
+        Label themeLabel = new Label("Tema:");
+        themeLabel.setLabelFor(theme);
         root.getChildren().addAll(Ui.title("Configuración"), startup, startupNote, tray,
+                new HBox(8, themeLabel, theme),
+                Ui.muted("Automático sigue el modo claro/oscuro de Windows (se lee al abrir la aplicación)."),
                 Ui.heading("Zona horaria"), Ui.text(AppTime.BOGOTA.getId() + " (UTC-5, sin horario de verano) — solo lectura"),
                 Ui.heading("Moneda"), Ui.text("COP — peso colombiano, sin decimales — solo lectura"));
         root.setPadding(new Insets(18));
@@ -61,6 +92,7 @@ public final class SettingsScreen implements Screen {
         Background.run(() -> new boolean[]{ctx.prefs.getBoolean(UiPreferences.MINIMIZE_TO_TRAY, true),
                 ctx.startup.isEnabled()}, v -> {
                     loading = true;
+                    theme.setValue(Theme.mode());
                     tray.setSelected(v[0]);
                     startup.setSelected(v[1]);
                     startup.setDisable(!ctx.startup.supported());

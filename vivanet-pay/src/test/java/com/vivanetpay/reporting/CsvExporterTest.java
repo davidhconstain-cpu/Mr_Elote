@@ -36,15 +36,29 @@ class CsvExporterTest {
 
     @Test
     void neutralizesFormulaInjection() {
-        assertThat(CsvExporter.escape("=1+1")).isEqualTo("'=1+1");
-        assertThat(CsvExporter.escape("+57300")).isEqualTo("'+57300");
-        assertThat(CsvExporter.escape("-2")).isEqualTo("'-2");
-        assertThat(CsvExporter.escape("@SUM(A1)")).isEqualTo("'@SUM(A1)");
-        assertThat(CsvExporter.escape("\t=cmd")).startsWith("'");
+        // OWASP: comilla simple inicial y campo entrecomillado
+        assertThat(CsvExporter.escape("=1+1")).isEqualTo("\"'=1+1\"");
+        assertThat(CsvExporter.escape("+57300")).isEqualTo("\"'+57300\"");
+        assertThat(CsvExporter.escape("-2")).isEqualTo("\"'-2\"");
+        assertThat(CsvExporter.escape("@SUM(A1)")).isEqualTo("\"'@SUM(A1)\"");
+        assertThat(CsvExporter.escape("\t=cmd")).startsWith("\"'");
+        assertThat(CsvExporter.escape("\r=cmd")).startsWith("\"'");
         assertThat(CsvExporter.escape("normal")).isEqualTo("normal");
         List<HistoryRow> rows = List.of(UiTestData.row(1, "=HYPERLINK(\"http://x\")", 5L, "@evil", EventStatus.PARSEADO));
         String csv = CsvExporter.toString(rows);
-        assertThat(csv).contains("\"'=HYPERLINK(\"\"http://x\"\")\"").contains(",'@evil,");
+        assertThat(csv).contains("\"'=HYPERLINK(\"\"http://x\"\")\"").contains(",\"'@evil\",");
+    }
+
+    @Test
+    void neutralizesFormulasHiddenBehindLeadingSpacesAndFullWidthSigns() {
+        assertThat(CsvExporter.neutralizeFormula("  =1+1")).startsWith("'");
+        assertThat(CsvExporter.neutralizeFormula("\u00A0@SUM(A1)")).startsWith("'");
+        assertThat(CsvExporter.neutralizeFormula("\uFF1DHYPERLINK(1)")).startsWith("'");
+        assertThat(CsvExporter.neutralizeFormula("\uFF0B1")).startsWith("'");
+        // texto normal con signos en medio no se toca
+        assertThat(CsvExporter.neutralizeFormula("Juan = José - 1")).isEqualTo("Juan = José - 1");
+        assertThat(CsvExporter.neutralizeFormula("  Ana")).isEqualTo("  Ana");
+        assertThat(CsvExporter.neutralizeFormula("")).isEmpty();
     }
 
     @Test

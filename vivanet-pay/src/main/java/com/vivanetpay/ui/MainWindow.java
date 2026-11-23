@@ -8,11 +8,20 @@ import com.vivanetpay.ui.view.PendingScreen;
 import com.vivanetpay.ui.view.Screen;
 import com.vivanetpay.ui.view.SettingsScreen;
 import com.vivanetpay.ui.view.VoiceScreen;
-import javafx.scene.Node;
+import javafx.scene.AccessibleRole;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -27,6 +36,7 @@ public final class MainWindow {
     private final Map<String, ToggleButton> buttons = new LinkedHashMap<>();
     private final ToggleGroup group = new ToggleGroup();
     private final Label banner = new Label();
+    private final HBox bannerBar = new HBox(10);
     private String currentId;
 
     public MainWindow(UiContext ctx) {
@@ -40,15 +50,21 @@ public final class MainWindow {
         Label brand = new Label("Vivanet Pay");
         brand.getStyleClass().add("nav-title");
         nav.getChildren().add(brand);
+        int n = 0;
         for (Screen s : screens.values()) {
+            n++;
             ToggleButton b = new ToggleButton(s.title());
             b.getStyleClass().add("nav-button");
             b.setMaxWidth(Double.MAX_VALUE);
             b.setToggleGroup(group);
             b.setOnAction(e -> show(s.id()));
+            b.setAccessibleText("Pantalla " + s.title());
+            b.setAccessibleHelp("Atajo Ctrl+" + n);
+            b.setTooltip(new Tooltip(s.title() + " (Ctrl+" + n + ")"));
             buttons.put(s.id(), b);
             nav.getChildren().add(b);
         }
+        nav.setAccessibleText("Navegación principal");
         // evita des-seleccionar al pulsar de nuevo el botón activo
         group.selectedToggleProperty().addListener((o, old, now) -> {
             if (now == null && old != null) {
@@ -58,16 +74,40 @@ public final class MainWindow {
         banner.getStyleClass().add("banner");
         banner.setWrapText(true);
         banner.setMaxWidth(Double.MAX_VALUE);
-        banner.setVisible(false);
-        banner.setManaged(false);
-        banner.setOnMouseClicked(e -> hideBanner());
+        HBox.setHgrow(banner, Priority.ALWAYS);
+        // Cerrable con ratón o teclado (antes solo con clic sobre el texto)
+        Button close = new Button("Cerrar aviso");
+        close.getStyleClass().add("banner-close");
+        close.setOnAction(e -> hideBanner());
+        bannerBar.getStyleClass().add("banner-bar");
+        bannerBar.getChildren().addAll(banner, close);
+        bannerBar.setAccessibleRole(AccessibleRole.TEXT);
+        bannerBar.setVisible(false);
+        bannerBar.setManaged(false);
         root.setLeft(nav);
         root.setCenter(center);
-        root.setTop(banner);
+        root.setTop(bannerBar);
+        root.sceneProperty().addListener((o, old, scene) -> {
+            if (scene != null) {
+                installShortcuts(scene);
+            }
+        });
         show("dashboard");
     }
 
-    public Node root() {
+    /** Ctrl+1..7 abren cada pantalla en el orden de la navegación. */
+    private void installShortcuts(Scene scene) {
+        int n = 0;
+        for (String id : screens.keySet()) {
+            n++;
+            KeyCode code = KeyCode.getKeyCode(Integer.toString(n));
+            if (code != null) {
+                scene.getAccelerators().put(new KeyCodeCombination(code, KeyCombination.SHORTCUT_DOWN), () -> show(id));
+            }
+        }
+    }
+
+    public Parent root() {
         return root;
     }
 
@@ -90,13 +130,14 @@ public final class MainWindow {
     }
 
     public void banner(String message) {
-        banner.setText("⚠ " + message + "   (clic para cerrar)");
-        banner.setVisible(true);
-        banner.setManaged(true);
+        banner.setText("⚠ " + message);
+        bannerBar.setAccessibleText("Aviso: " + message);
+        bannerBar.setVisible(true);
+        bannerBar.setManaged(true);
     }
 
     private void hideBanner() {
-        banner.setVisible(false);
-        banner.setManaged(false);
+        bannerBar.setVisible(false);
+        bannerBar.setManaged(false);
     }
 }

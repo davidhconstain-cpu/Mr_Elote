@@ -1,8 +1,8 @@
 package com.vivanetpay.app;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 import com.vivanetpay.application.AnnouncementRecorder;
 import com.vivanetpay.application.AppEventBus;
 import com.vivanetpay.application.ConnectorMonitor;
@@ -89,8 +89,10 @@ public final class AppContext implements AutoCloseable {
     private AppContext(Builder b) {
         this.config = b.config;
         this.clock = b.clock;
-        this.json = new ObjectMapper().registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // Jackson 3 trae java.time integrado; fechas ISO-8601 (explícito aunque ya es el valor por defecto en 3.x).
+        this.json = JsonMapper.builder()
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .build();
         this.database = Database.openAndMigrate(config.databaseFile());
         this.eventRepository = new PaymentEventRepository(database);
         this.transactionRepository = new TransactionRepository(database);

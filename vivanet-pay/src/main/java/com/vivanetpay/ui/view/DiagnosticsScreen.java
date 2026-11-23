@@ -86,29 +86,24 @@ public final class DiagnosticsScreen implements Screen {
                 + ctx.app.speechEngine().id() + "\nConectores: " + ctx.connectorStates();
     }
 
+    /** Lectura de diagnóstico calculada fuera del hilo de UI. */
+    private record Snapshot(LicenseInfo license, List<String> problems, Optional<String> lastError) {
+    }
+
     @Override
     public void refresh() {
         version.setText("Vivanet Pay " + appVersion());
         sysInfo.setText("Java " + System.getProperty("java.version") + " · " + System.getProperty("os.name"));
         dataDir.setText("Datos: " + ctx.app.config().dataDir());
         logsDir.setText(ctx.app.config().logsDir().toString());
-        Background.run(() -> {
-            LicenseInfo li = ctx.app.licenseService().check();
-            List<String> problems = ctx.app.maintenance().integrityCheck();
-            Optional<String> err = DiagnosticsPackage.lastError(ctx.app.config().logsDir());
-            return new Object[]{li, problems, err};
-        }, r -> {
-            @SuppressWarnings("unchecked")
-            LicenseInfo li = (LicenseInfo) r[0];
-            @SuppressWarnings("unchecked")
-            List<String> problems = (List<String>) r[1];
-            @SuppressWarnings("unchecked")
-            Optional<String> err = (Optional<String>) r[2];
+        Background.run(() -> new Snapshot(ctx.app.licenseService().check(), ctx.app.maintenance().integrityCheck(),
+                DiagnosticsPackage.lastError(ctx.app.config().logsDir())), r -> {
+            LicenseInfo li = r.license();
             license.setText(li.status().label() + ". " + li.message() + (li.trialEndsAt() == null ? ""
                     : " (fin de prueba: " + Formats.time(li.trialEndsAt()) + ")"));
-            integrity.setText(problems.isEmpty() ? "✔ La base de datos está íntegra."
-                    : "✖ Problemas de integridad: " + problems + ". Restaura un respaldo.");
-            lastError.setText(err.orElse("Ninguno."));
+            integrity.setText(r.problems().isEmpty() ? "✔ La base de datos está íntegra."
+                    : "✖ Problemas de integridad: " + r.problems() + ". Restaura un respaldo.");
+            lastError.setText(r.lastError().orElse("Ninguno."));
         }, e -> lastError.setText("No se pudo leer el diagnóstico: " + Ui.describe(e)));
     }
 
@@ -164,15 +159,18 @@ public final class DiagnosticsScreen implements Screen {
                 p -> Ui.info("Paquete creado", p.toString()), e -> Ui.error("No se pudo crear el paquete", Ui.describe(e)));
     }
 
+    /** Abre la carpeta con el explorador del sistema (llamada AWT bloqueante: fuera del hilo de JavaFX). */
     private void openFolder(Path dir) {
-        try {
-            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
-                java.awt.Desktop.getDesktop().open(dir.toFile());
-            } else {
+        Background.run(() -> {
+            if (!java.awt.Desktop.isDesktopSupported() || !java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
+                return false;
+            }
+            java.awt.Desktop.getDesktop().open(dir.toFile());
+            return true;
+        }, opened -> {
+            if (!opened) {
                 Ui.info("Carpeta de logs", dir.toString());
             }
-        } catch (Exception e) {
-            Ui.info("Carpeta de logs", dir.toString());
-        }
+        }, e -> Ui.info("Carpeta de logs", dir.toString()));
     }
 }

@@ -21,7 +21,7 @@ import java.util.Optional;
 public final class PendingScreen implements Screen {
     private final UiContext ctx;
     private final VBox root = new VBox(10);
-    private final TableView<ReviewViewModel.Row> table = new TableView<>();
+    private final TableView<ReviewViewModel.Row> table = Ui.table("Eventos pendientes de revisión", "No hay eventos pendientes de revisión");
     private final TextArea detail = new TextArea();
     private final Button validate = new Button("✔ Validar (ya lo vi en mi banco)");
     private final Button discard = new Button("✖ Descartar…");
@@ -30,7 +30,6 @@ public final class PendingScreen implements Screen {
 
     public PendingScreen(UiContext ctx) {
         this.ctx = ctx;
-        Ui.placeholder(table, "No hay eventos pendientes de revisión");
         table.getColumns().add(Ui.col("Fecha y hora", 160, ReviewViewModel.Row::when));
         table.getColumns().add(Ui.col("Entidad", 110, ReviewViewModel.Row::bank));
         table.getColumns().add(Ui.col("Monto", 110, ReviewViewModel.Row::amount));
@@ -39,6 +38,7 @@ public final class PendingScreen implements Screen {
         table.setPrefHeight(240);
         detail.setEditable(false);
         detail.setWrapText(true);
+        detail.setAccessibleText("Detalle del evento pendiente seleccionado");
         VBox.setVgrow(detail, Priority.ALWAYS);
         table.getSelectionModel().selectedItemProperty().addListener((o, a, b) -> select(b));
         validate.setOnAction(e -> doValidate());

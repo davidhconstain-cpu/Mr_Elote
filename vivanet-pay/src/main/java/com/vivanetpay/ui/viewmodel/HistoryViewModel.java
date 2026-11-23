@@ -64,6 +64,13 @@ public final class HistoryViewModel {
         return Long.parseLong(digits);
     }
 
+    /** Resumen bajo los filtros: cantidad de resultados y aviso si se alcanzó el límite. */
+    public static String summary(int shown, int limit) {
+        return shown + " resultado(s)"
+                + (shown >= limit ? " (se muestran los primeros " + limit + "; afina los filtros)" : "")
+                + ". Horas en America/Bogota.";
+    }
+
     /** Fila de la tabla ya formateada. */
     public record Row(long eventId, String when, String source, String bank, String amount, String sender,
                       String status, HistoryRow raw) {

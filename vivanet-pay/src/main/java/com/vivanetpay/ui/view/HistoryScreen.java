@@ -49,7 +49,7 @@ public final class HistoryScreen implements Screen {
     private final TextField max = new TextField();
     private final TextField text = new TextField();
     private final Label summary = Ui.muted("");
-    private final TableView<HistoryViewModel.Row> table = new TableView<>();
+    private final TableView<HistoryViewModel.Row> table = Ui.table("Movimientos del historial", "No hay movimientos con estos filtros");
     private final TextArea detail = new TextArea();
     private HistoryFilter lastFilter = HistoryFilter.all();
 
@@ -60,6 +60,14 @@ public final class HistoryScreen implements Screen {
         min.setPromptText("Monto mínimo");
         max.setPromptText("Monto máximo");
         text.setPromptText("Remitente o referencia");
+        Ui.named(from, "Fecha desde");
+        Ui.named(to, "Fecha hasta");
+        Ui.named(source, "Filtrar por fuente");
+        Ui.named(status, "Filtrar por estado");
+        Ui.named(min, "Monto mínimo");
+        Ui.named(max, "Monto máximo");
+        Ui.named(text, "Buscar por remitente o referencia");
+        detail.setAccessibleText("Detalle del movimiento seleccionado");
         List<Choice<EventSource>> sources = new ArrayList<>();
         sources.add(new Choice<>("Todas las fuentes", null));
         for (EventSource s : EventSource.values()) {
@@ -95,7 +103,6 @@ public final class HistoryScreen implements Screen {
         export.setOnAction(e -> export());
         FlowPane filters = new FlowPane(8, 8, new Label("Fecha:"), from, to, source, status, min, max, text, search, clear, export);
 
-        Ui.placeholder(table, "No hay movimientos con estos filtros");
         table.getColumns().add(Ui.col("Fecha y hora", 160, HistoryViewModel.Row::when));
         table.getColumns().add(Ui.col("Fuente", 120, HistoryViewModel.Row::source));
         table.getColumns().add(Ui.col("Entidad", 120, HistoryViewModel.Row::bank));
@@ -146,9 +153,7 @@ public final class HistoryScreen implements Screen {
         Background.run(() -> ctx.app.historyService().search(f).stream().map(HistoryViewModel::row).toList(),
                 rows -> {
                     table.getItems().setAll(rows);
-                    summary.setText(rows.size() + " resultado(s)"
-                            + (rows.size() >= f.limit() ? " (se muestran los primeros " + f.limit() + "; afina los filtros)" : "")
-                            + ". Horas en America/Bogota.");
+                    summary.setText(HistoryViewModel.summary(rows.size(), f.limit()));
                 }, e -> ctx.shell.banner("No se pudo cargar el historial: " + Ui.describe(e)));
     }
 

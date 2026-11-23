@@ -1,7 +1,8 @@
 package com.vivanetpay.integration.android;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.vivanetpay.application.EventSink;
 import com.vivanetpay.application.IngestionResult;
 import com.vivanetpay.domain.EventSource;
@@ -84,7 +85,7 @@ public final class WebhookRequestProcessor {
     private final NonceCache nonces;
     private final RateLimiter rateLimiter;
     private final WebhookPayloadParser parser = new WebhookPayloadParser();
-    private final ObjectMapper json = new ObjectMapper();
+    private final ObjectMapper json = JsonMapper.shared();
     private volatile ExecutorService ingestExecutor;
 
     private final AtomicLong accepted = new AtomicLong();
@@ -374,7 +375,7 @@ public final class WebhookRequestProcessor {
     private Response respond(int status, Map<String, Object> body, Map<String, String> headers) {
         try {
             return new Response(status, json.writeValueAsString(body), headers);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return new Response(status, "{}", headers);
         }
     }

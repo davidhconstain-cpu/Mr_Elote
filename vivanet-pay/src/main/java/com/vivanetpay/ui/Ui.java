@@ -2,7 +2,9 @@ package com.vivanetpay.ui;
 
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
@@ -42,7 +44,7 @@ public final class Ui {
         return l;
     }
 
-    public static VBox card(String styleClass, javafx.scene.Node... children) {
+    public static VBox card(String styleClass, Node... children) {
         VBox box = new VBox(6, children);
         box.getStyleClass().addAll("card", styleClass);
         box.setPadding(new Insets(14));
@@ -53,11 +55,27 @@ public final class Ui {
         TableColumn<T, String> c = new TableColumn<>(title);
         c.setCellValueFactory(cd -> new ReadOnlyStringWrapper(f.apply(cd.getValue())));
         c.setPrefWidth(width);
+        c.setReorderable(false);
         return c;
     }
 
     public static <T> void placeholder(TableView<T> t, String text) {
         t.setPlaceholder(new Label(text));
+    }
+
+    /** Tabla con nombre accesible (lectores de pantalla) y mensaje de tabla vacía. */
+    public static <T> TableView<T> table(String accessibleName, String emptyText) {
+        TableView<T> t = new TableView<>();
+        t.setAccessibleText(accessibleName);
+        t.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        placeholder(t, emptyText);
+        return t;
+    }
+
+    /** Nombre accesible para un control cuyo texto visible no basta (campos con solo marcador de posición). */
+    public static <N extends Node> N named(N node, String accessibleName) {
+        node.setAccessibleText(accessibleName);
+        return node;
     }
 
     public static void info(String title, String message) {
@@ -72,16 +90,18 @@ public final class Ui {
         Alert a = new Alert(type, message, ButtonType.OK);
         a.setTitle(title);
         a.setHeaderText(title);
+        Theme.apply(a.getDialogPane());
         a.showAndWait();
     }
 
     /** Confirmación Sí/No; el botón por defecto es "No". */
     public static boolean confirm(String title, String message) {
-        ButtonType yes = new ButtonType("Sí", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
-        ButtonType no = new ButtonType("No", javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType yes = new ButtonType("Sí", ButtonBar.ButtonData.OK_DONE);
+        ButtonType no = new ButtonType("No", ButtonBar.ButtonData.CANCEL_CLOSE);
         Alert a = new Alert(Alert.AlertType.CONFIRMATION, message, yes, no);
         a.setTitle(title);
         a.setHeaderText(title);
+        Theme.apply(a.getDialogPane());
         return a.showAndWait().filter(b -> b == yes).isPresent();
     }
 
@@ -92,6 +112,7 @@ public final class Ui {
             d.setTitle(title);
             d.setHeaderText(title);
             d.setContentText(prompt);
+            Theme.apply(d.getDialogPane());
             Optional<String> r = d.showAndWait();
             if (r.isEmpty()) {
                 return Optional.empty();

@@ -1,18 +1,19 @@
 package com.vivanetpay.integration.android;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.StreamReadConstraints;
-import com.fasterxml.jackson.core.StreamReadFeature;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.StreamReadConstraints;
+import tools.jackson.core.StreamReadFeature;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.core.json.JsonReadFeature;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -57,17 +58,19 @@ final class WebhookPayloadParser {
                 .streamReadConstraints(StreamReadConstraints.builder()
                         .maxNestingDepth(2).maxStringLength(MAX_TEXT * 2).maxNumberLength(20).build())
                 .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+                .disable(JsonReadFeature.ALLOW_JAVA_COMMENTS)
                 .build();
-        this.mapper = new ObjectMapper(factory)
-                .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
-        mapper.getFactory().disable(JsonParser.Feature.ALLOW_COMMENTS);
+        // Jackson 3: el mapper es inmutable y se configura solo en el builder.
+        this.mapper = JsonMapper.builder(factory)
+                .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                .build();
     }
 
     WebhookPayload parse(byte[] body, Instant now) throws InvalidPayloadException {
         JsonNode root;
         try {
             root = mapper.readTree(body);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new InvalidPayloadException("malformed_json", "El cuerpo no es JSON válido");
         }
         if (root == null || !root.isObject()) {
@@ -92,7 +95,7 @@ final class WebhookPayloadParser {
             throw new InvalidPayloadException("malformed_form", "El cuerpo no es UTF-8 válido");
         }
         s = s.replaceAll("[\\r\\n]+$", ""); // un salto de línea final (copiar/pegar) no es parte del último valor
-        com.fasterxml.jackson.databind.node.ObjectNode root = mapper.createObjectNode();
+        ObjectNode root = mapper.createObjectNode();
         if (!s.isEmpty()) {
             for (String pair : s.split("&", -1)) {
                 if (pair.isEmpty()) {
@@ -137,8 +140,7 @@ final class WebhookPayloadParser {
     }
 
     private WebhookPayload parseObject(JsonNode root, Instant now) throws InvalidPayloadException {
-        for (Iterator<String> it = root.fieldNames(); it.hasNext(); ) {
-            String f = it.next();
+        for (String f : root.propertyNames()) {
             if (!ALLOWED.contains(f)) {
                 throw new InvalidPayloadException("unknown_field", "Campo no permitido: " + safeName(f));
             }
@@ -184,10 +186,10 @@ final class WebhookPayloadParser {
             }
             return null;
         }
-        if (!n.isTextual()) {
+        if (!n.isString()) {
             throw new InvalidPayloadException("invalid_schema", field + " debe ser texto");
         }
-        String v = n.textValue();
+        String v = n.stringValue();
         int len = v.codePointCount(0, v.length());
         if (len < min || len > max) {
             throw new InvalidPayloadException("invalid_schema", field + " debe tener entre " + min + " y " + max + " caracteres");
@@ -212,8 +214,8 @@ final class WebhookPayloadParser {
         Instant value;
         if (n.isIntegralNumber()) {
             value = fromEpoch(n.asLong());
-        } else if (n.isTextual()) {
-            String s = n.textValue().strip();
+        } else if (n.isString()) {
+            String s = n.stringValue().strip();
             if (s.length() > 40) {
                 throw new InvalidPayloadException("invalid_schema", "capturedAt demasiado largo");
             }

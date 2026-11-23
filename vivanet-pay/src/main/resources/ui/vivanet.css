@@ -1,28 +1,95 @@
+/*
+ * Vivanet Pay - estilos. Los colores son "looked-up colors" (-vp-*): se definen una sola vez por tema y el resto
+ * de reglas solo los referencian. Tema oscuro = clase "dark" en la raíz (la pone Theme.java según el modo del
+ * sistema). UiThemeContrastTest verifica el contraste mínimo WCAG AA de los pares texto/fondo declarados aquí.
+ * Los estados nunca dependen solo del color: llevan símbolo y texto (IDD 9.4), el borde "por verificar" es
+ * discontinuo y el foco se ve con un contorno grueso.
+ */
 .root {
+    /* --- paleta clara --- */
+    -vp-bg: #f4f6f8;
+    -vp-surface: #ffffff;
+    -vp-text: #1d232a;
+    -vp-muted: #4a5560;
+    -vp-primary: #0b3d6b;
+    -vp-nav-bg: #0b3d6b;
+    -vp-nav-text: #ffffff;
+    -vp-nav-hover: #1a5a9a;
+    -vp-nav-selected-bg: #ffffff;
+    -vp-nav-selected-text: #0b3d6b;
+    -vp-ok: #1b7f3b;
+    -vp-warn: #8a5200;
+    -vp-neutral: #76818c;
+    -vp-banner-bg: #fff3cd;
+    -vp-banner-text: #4a3000;
+    -vp-focus: #ffd34d;
+    -vp-focus-ring: #0b5cad;
+
     -fx-font-family: "Segoe UI", "Noto Sans", sans-serif;
     -fx-font-size: 14px;
     -fx-base: #f4f6f8;
-    -fx-background: #f4f6f8;
+    -fx-background: -vp-bg;
+    -fx-text-base-color: -vp-text;
+    -fx-accent: -vp-focus-ring;
+    -fx-focus-color: -vp-focus-ring;
+    -fx-faint-focus-color: transparent;
 }
-.nav { -fx-background-color: #0b3d6b; -fx-padding: 12 0 12 0; }
-.nav-title { -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 4 16 14 16; }
+
+.root.dark {
+    /* --- paleta oscura --- */
+    -vp-bg: #14181d;
+    -vp-surface: #1e252c;
+    -vp-text: #e8edf2;
+    -vp-muted: #aab4be;
+    -vp-primary: #8cc2f5;
+    -vp-nav-bg: #0a2744;
+    -vp-nav-text: #ffffff;
+    -vp-nav-hover: #1a4a7a;
+    -vp-nav-selected-bg: #e8edf2;
+    -vp-nav-selected-text: #0a2744;
+    -vp-ok: #5fd07f;
+    -vp-warn: #f0b050;
+    -vp-neutral: #6b7682;
+    -vp-banner-bg: #4a3a10;
+    -vp-banner-text: #ffe9a8;
+    -vp-focus: #ffd34d;
+    -vp-focus-ring: #6cb4ff;
+
+    -fx-base: #2a323a;
+    -fx-background: -vp-bg;
+    -fx-control-inner-background: #1e252c;
+    -fx-control-inner-background-alt: #232b33;
+}
+
+.label { -fx-text-fill: -vp-text; }
+.loading { -fx-font-size: 18px; -fx-padding: 40; -fx-text-fill: -vp-text; }
+
+.nav { -fx-background-color: -vp-nav-bg; -fx-padding: 12 0 12 0; }
+.nav-title { -fx-text-fill: -vp-nav-text; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 4 16 14 16; }
 .nav-button {
-    -fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;
+    -fx-background-color: transparent; -fx-text-fill: -vp-nav-text; -fx-alignment: CENTER_LEFT;
     -fx-padding: 10 18 10 18; -fx-background-radius: 0; -fx-font-size: 14px; -fx-cursor: hand;
 }
-.nav-button:hover { -fx-background-color: #1a5a9a; }
-.nav-button:selected { -fx-background-color: #ffffff; -fx-text-fill: #0b3d6b; -fx-font-weight: bold; }
-.nav-button:focused { -fx-border-color: #ffd34d; -fx-border-width: 2; }
-.screen-title { -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #0b3d6b; }
-.section-heading { -fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #222; }
-.muted { -fx-text-fill: #555; }
+.nav-button:hover { -fx-background-color: -vp-nav-hover; }
+.nav-button:selected { -fx-background-color: -vp-nav-selected-bg; -fx-text-fill: -vp-nav-selected-text; -fx-font-weight: bold; }
+.nav-button:focused { -fx-border-color: -vp-focus; -fx-border-width: 2; -fx-background-insets: 0; }
+
+.screen-title { -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: -vp-primary; }
+.section-heading { -fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: -vp-text; }
+.muted, .label.muted { -fx-text-fill: -vp-muted; }
 .big-number { -fx-font-size: 34px; -fx-font-weight: bold; }
-.card { -fx-background-color: white; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-width: 2; }
-.card-ok { -fx-border-color: #1b7f3b; }
-.card-warn { -fx-border-color: #b36b00; -fx-border-style: segments(8, 4); }
-.card-neutral { -fx-border-color: #c5ccd3; }
-.banner {
-    -fx-background-color: #fff3cd; -fx-border-color: #b36b00; -fx-border-width: 0 0 2 0;
-    -fx-padding: 8 14 8 14; -fx-text-fill: #4a3000; -fx-font-weight: bold;
+
+.card { -fx-background-color: -vp-surface; -fx-background-radius: 6; -fx-border-radius: 6; -fx-border-width: 2; }
+.card-ok { -fx-border-color: -vp-ok; }
+.card-warn { -fx-border-color: -vp-warn; -fx-border-style: segments(8, 4); }
+.card-neutral { -fx-border-color: -vp-neutral; }
+
+.banner-bar {
+    -fx-background-color: -vp-banner-bg; -fx-border-color: -vp-warn; -fx-border-width: 0 0 2 0;
+    -fx-padding: 6 14 6 14; -fx-alignment: CENTER_LEFT;
 }
+.banner { -fx-text-fill: -vp-banner-text; -fx-font-weight: bold; }
+.banner-close { -fx-text-fill: -vp-banner-text; }
+
 .button { -fx-padding: 6 14 6 14; }
+.table-view .column-header-background { -fx-min-height: 32; }

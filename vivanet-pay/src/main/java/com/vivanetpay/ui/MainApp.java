@@ -12,6 +12,7 @@ import com.vivanetpay.voice.SpeechEngines;
 import com.vivanetpay.voice.VoiceSettings;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
@@ -58,9 +59,12 @@ public class MainApp extends Application implements UiContext.Shell {
         primary.setMinWidth(900);
         primary.setMinHeight(620);
         Label loading = new Label("Iniciando Vivanet Pay…");
-        loading.setStyle("-fx-font-size: 18px; -fx-padding: 40;");
+        loading.getStyleClass().add("loading");
+        loading.setWrapText(true);
+        loading.setAccessibleRole(AccessibleRole.TEXT);
+        Theme.followSystem();
         Scene scene = new Scene(new StackPane(loading), 1100, 720);
-        applyCss(scene);
+        Theme.apply(scene);
         primary.setScene(scene);
         primary.setOnCloseRequest(e -> {
             e.consume();
@@ -69,7 +73,7 @@ public class MainApp extends Application implements UiContext.Shell {
         if (!minimized) {
             primary.show();
         }
-        Thread boot = new Thread(() -> {
+        Thread.ofPlatform().name("vivanet-bootstrap").daemon().start(() -> {
             try {
                 Bootstrap.Result result = Bootstrap.start(AppContext.builder(config)
                         .speechEngine(SpeechEngines.create())
@@ -82,23 +86,14 @@ public class MainApp extends Application implements UiContext.Shell {
                         + "\n\nRevisa los logs en " + config.logsDir()));
                 Platform.runLater(() -> stage.show());
             }
-        }, "vivanet-bootstrap");
-        boot.setDaemon(true);
-        boot.start();
-    }
-
-    private static void applyCss(Scene scene) {
-        var css = MainApp.class.getResource("/ui/vivanet.css");
-        if (css != null) {
-            scene.getStylesheets().add(css.toExternalForm());
-        }
+        });
     }
 
     private void onReady(Bootstrap.Result result, Scene scene, boolean minimized) {
         ctx = new UiContext(result);
         ctx.shell = this;
         window = new MainWindow(ctx);
-        scene.setRoot((javafx.scene.Parent) window.root());
+        scene.setRoot(window.root());
         subscribeBus();
         tray = new TrayController(new TrayController.Actions() {
             @Override
@@ -167,16 +162,20 @@ public class MainApp extends Application implements UiContext.Shell {
         }
         scheduleRefresh();
         updateTray();
-        if (e instanceof AppEvent.AnnouncementNotPlayed n) {
-            String msg = n.message() == null ? "Evento sin anunciar" : n.message();
-            boolean silenced = ctx.app.voiceService().isMuted();
-            notifyUser(silenced ? "Voz silenciada" : "Falló el aviso de voz", msg + (n.reason() == null ? "" : " (" + n.reason() + ")"), true);
-        } else if (e instanceof AppEvent.ConnectorStatusChanged c && c.current().status().needsAttention()
-                && c.current().status() != ConnectorStatus.PAUSADO) {
-            notifyUser("Conector " + c.current().type() + ": " + c.current().status().label(),
-                    Formats.recommendedAction(c.current().status()), true);
-        } else if (e instanceof AppEvent.EventNeedsReview) {
-            notifyUser("Pago por verificar", "Hay un evento pendiente de revisión.", false);
+        switch (e) {
+            case AppEvent.AnnouncementNotPlayed n -> {
+                String msg = n.message() == null ? "Evento sin anunciar" : n.message();
+                boolean silenced = ctx.app.voiceService().isMuted();
+                notifyUser(silenced ? "Voz silenciada" : "Falló el aviso de voz",
+                        msg + (n.reason() == null ? "" : " (" + n.reason() + ")"), true);
+            }
+            case AppEvent.ConnectorStatusChanged c when c.current().status().needsAttention()
+                    && c.current().status() != ConnectorStatus.PAUSADO ->
+                notifyUser("Conector " + c.current().type() + ": " + c.current().status().label(),
+                        Formats.recommendedAction(c.current().status()), true);
+            case AppEvent.EventNeedsReview r ->
+                notifyUser("Pago por verificar", "Hay un evento pendiente de revisión.", false);
+            default -> { }
         }
     }
 

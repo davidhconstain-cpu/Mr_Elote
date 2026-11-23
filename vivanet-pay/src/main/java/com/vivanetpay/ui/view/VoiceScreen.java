@@ -5,6 +5,8 @@ import com.vivanetpay.ui.Ui;
 import com.vivanetpay.ui.UiContext;
 import com.vivanetpay.ui.UiPreferences;
 import com.vivanetpay.voice.VoiceSettings;
+import javafx.animation.PauseTransition;
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -13,6 +15,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
 /** Voz (RF-015, RF-016): activar, silenciar al instante, volumen, velocidad y prueba. */
 public final class VoiceScreen implements Screen {
@@ -40,23 +43,30 @@ public final class VoiceScreen implements Screen {
         enabled.setOnAction(e -> save());
         mute.setOnAction(e -> {
             ctx.app.voiceService().setMuted(mute.isSelected());
-            refreshMuteText();
             ctx.shell.onPreferencesChanged();
         });
-        volume.valueProperty().addListener((o, a, b) -> volumeText.setText("Volumen: " + b.intValue() + " %"));
-        rate.valueProperty().addListener((o, a, b) -> rateText.setText("Velocidad: " + b.intValue() + " (0 = normal)"));
-        volume.valueChangingProperty().addListener((o, a, changing) -> {
-            if (!changing) {
-                save();
+        // Textos derivados por binding (antes se actualizaban a mano con listeners)
+        volumeText.textProperty().bind(Bindings.createStringBinding(
+                () -> "Volumen: " + (int) volume.getValue() + " %", volume.valueProperty()));
+        rateText.textProperty().bind(Bindings.createStringBinding(
+                () -> "Velocidad: " + (int) rate.getValue() + " (0 = normal)", rate.valueProperty()));
+        mute.textProperty().bind(Bindings.when(mute.selectedProperty())
+                .then("🔇 Voz silenciada: pulsa para activar").otherwise("Silenciar ahora"));
+        volume.setAccessibleText("Volumen de la voz, de 0 a 100 por ciento");
+        rate.setAccessibleText("Velocidad de la voz, de menos 10 a 10; 0 es normal");
+        // Guardado con pausa (debounce): también guarda al mover el control con el teclado, no solo con el ratón.
+        PauseTransition debounce = new PauseTransition(Duration.millis(400));
+        debounce.setOnFinished(e -> save());
+        volume.valueProperty().addListener((o, a, b) -> {
+            if (!loading) {
+                debounce.playFromStart();
             }
         });
-        rate.valueChangingProperty().addListener((o, a, changing) -> {
-            if (!changing) {
-                save();
+        rate.valueProperty().addListener((o, a, b) -> {
+            if (!loading) {
+                debounce.playFromStart();
             }
         });
-        volume.setOnMouseReleased(e -> save());
-        rate.setOnMouseReleased(e -> save());
         root.getChildren().addAll(Ui.title("Voz"), enabled, mute, volumeText, volume, rateText, rate, test, engine,
                 Ui.muted("El anuncio no incluye el nombre del remitente y no se reproducen movimientos históricos. "
                         + "Si la voz está silenciada o falla, verás un aviso visual."));
@@ -87,13 +97,8 @@ public final class VoiceScreen implements Screen {
         rate.setValue(s.rate());
         mute.setSelected(ctx.app.voiceService().isMuted());
         loading = false;
-        refreshMuteText();
         engine.setText("Motor de voz: " + ctx.app.speechEngine().id()
                 + (ctx.app.speechEngine().isAvailable() ? " (disponible)" : " (NO disponible: revisa el audio de Windows)"));
-    }
-
-    private void refreshMuteText() {
-        mute.setText(mute.isSelected() ? "🔇 Voz silenciada: pulsa para activar" : "Silenciar ahora");
     }
 
     private void save() {

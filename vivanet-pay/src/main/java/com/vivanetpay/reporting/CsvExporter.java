@@ -89,25 +89,48 @@ public final class CsvExporter {
         return sb.append(EOL).toString();
     }
 
-    /** Neutraliza fórmulas y aplica comillas CSV (RFC 4180). */
+    /**
+     * Neutraliza fórmulas y aplica comillas CSV (RFC 4180). Un campo neutralizado siempre va entre comillas
+     * (recomendación OWASP "CSV Injection": comilla simple inicial + campo entrecomillado).
+     */
     public static String escape(String value) {
-        String v = neutralizeFormula(value == null ? "" : value);
-        boolean quote = v.indexOf(',') >= 0 || v.indexOf('"') >= 0 || v.indexOf('\n') >= 0 || v.indexOf('\r') >= 0;
+        String raw = value == null ? "" : value;
+        String v = neutralizeFormula(raw);
+        boolean neutralized = v.length() != raw.length();
+        boolean quote = neutralized || v.indexOf(',') >= 0 || v.indexOf('"') >= 0 || v.indexOf('\n') >= 0
+                || v.indexOf('\r') >= 0;
         if (quote) {
             return '"' + v.replace("\"", "\"\"") + '"';
         }
         return v;
     }
 
-    /** Antepone una comilla simple a textos que Excel interpretaría como fórmula. */
+    /**
+     * Antepone una comilla simple a textos que Excel, LibreOffice o Google Sheets interpretarían como fórmula:
+     * primer carácter significativo {@code = + - @}, tabulación, CR o LF (OWASP), sus equivalentes de ancho
+     * completo ({@code ＝ ＋ － ＠}) y los mismos casos precedidos de espacios o caracteres de control, que algunas
+     * hojas de cálculo ignoran al evaluar.
+     */
     public static String neutralizeFormula(String v) {
-        if (v.isEmpty()) {
-            return v;
+        int i = 0;
+        while (i < v.length() && (Character.isWhitespace(v.charAt(i)) || Character.isISOControl(v.charAt(i))
+                || v.charAt(i) == '\u00A0' || v.charAt(i) == '\uFEFF') && !isLeadingTrigger(v.charAt(i))) {
+            i++;
         }
-        char c = v.charAt(0);
-        if (c == '=' || c == '+' || c == '-' || c == '@' || c == '\t' || c == '\r' || c == '\n') {
+        if (i < v.length() && (isLeadingTrigger(v.charAt(i)) || isFormulaStart(v.charAt(i)))) {
             return "'" + v;
         }
         return v;
+    }
+
+    private static boolean isLeadingTrigger(char c) {
+        return c == '\t' || c == '\r' || c == '\n';
+    }
+
+    private static boolean isFormulaStart(char c) {
+        return switch (c) {
+            case '=', '+', '-', '@', '\uFF1D', '\uFF0B', '\uFF0D', '\uFF20' -> true;
+            default -> false;
+        };
     }
 }

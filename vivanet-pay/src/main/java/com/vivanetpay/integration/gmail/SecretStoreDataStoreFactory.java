@@ -1,7 +1,9 @@
 package com.vivanetpay.integration.gmail;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.google.api.client.util.store.AbstractDataStore;
 import com.google.api.client.util.store.AbstractDataStoreFactory;
 import com.google.api.client.util.store.DataStore;
@@ -30,7 +32,7 @@ import java.util.Set;
  */
 public final class SecretStoreDataStoreFactory extends AbstractDataStoreFactory {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = JsonMapper.shared();
     /**
      * Lista blanca ESTRICTA de clases (clases exactas, sin comodines de paquete) y límites de tamaño: lo que serializa
      * {@code StoredCredential} (cadenas, {@code Long} y su {@code ReentrantLock}). Cualquier otra clase (colecciones,
@@ -92,6 +94,9 @@ public final class SecretStoreDataStoreFactory extends AbstractDataStoreFactory 
                 for (var e : stored.entrySet()) {
                     map.put(e.getKey(), Base64.getDecoder().decode(e.getValue()));
                 }
+            } catch (JacksonException e) {
+                // Jackson 3 lanza excepciones no comprobadas; el contrato de DataStore espera IOException.
+                throw new IOException("Credencial OAuth almacenada ilegible", e);
             } finally {
                 Arrays.fill(chars, '\0');
             }
@@ -106,7 +111,12 @@ public final class SecretStoreDataStoreFactory extends AbstractDataStoreFactory 
                 factory.secrets.delete(factory.keyFor(getId()));
                 return;
             }
-            String json = JSON.writeValueAsString(out);
+            String json;
+            try {
+                json = JSON.writeValueAsString(out);
+            } catch (JacksonException e) {
+                throw new IOException("No se pudo serializar la credencial OAuth", e);
+            }
             char[] chars = json.toCharArray();
             try {
                 factory.secrets.put(factory.keyFor(getId()), chars);

@@ -1,7 +1,7 @@
 package com.vivanetpay.application;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.vivanetpay.domain.Actors;
 import com.vivanetpay.domain.AnnouncementKind;
 import com.vivanetpay.domain.CopAmount;
@@ -272,7 +272,7 @@ public final class IngestionService implements EventSink, AutoCloseable {
     private String toJson(Object o) {
         try {
             return json.writeValueAsString(o);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("No se pudo serializar a JSON", e);
         }
     }
@@ -280,7 +280,7 @@ public final class IngestionService implements EventSink, AutoCloseable {
     private String toJsonSafe(Object o) {
         try {
             return json.writeValueAsString(o);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return null;
         }
     }

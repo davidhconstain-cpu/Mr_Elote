@@ -4,14 +4,14 @@
 
 | Componente | Antes | Después | Motivo |
 |---|---|---|---|
-| `org.openjfx:javafx-controls/fxml` | 21.0.5 | **23.0.2** | Última JavaFX cuyo bytecode es Java 21 (class file 65, verificado en el jar). JavaFX 24 es class 66 (JDK 22+), 25 y 27 exigen JDK 23/25. 23.x trae `Platform.Preferences` (tema del sistema). |
+| `org.openjfx:javafx-controls/fxml` | 21.0.5 | **21.0.13.1** | Última de la línea LTS 21 en Maven Central (verificado). Producto comercial: la 23.x (última compatible con JDK 21 fuera de la LTS, class 65) ya no recibe parches de seguridad; 24 exige JDK 22+ y 25/27 JDK 23/25. La LTS 21 sí se mantiene. |
 | `org.openjfx:javafx-maven-plugin` | 0.0.8 | 0.0.8 | Ya es la última en Maven Central. |
 
-Nota: 23.x es una versión no LTS ya sin mantenimiento. La alternativa conservadora es la línea LTS 21.0.13.1 (sin tema del sistema). El proyecto sigue en Java 21 por decisión del propietario.
+La línea 21 no tiene `Platform.Preferences`; el tema se resuelve con `SystemTheme` (ver sección 4).
 Otras librerías de UI: ninguna (solo JavaFX; no se usa ControlsFX/FXTrayIcon).
 
 ## 2. APIs deprecadas
-Con `-Xlint:all` (ya activo en el pom) y 23.0.2 no quedan avisos de deprecación en `ui/**` ni `reporting/**`.
+Con `-Xlint:all` (ya activo en el pom) y 21.0.13.1 no quedan avisos de deprecación en `ui/**` ni `reporting/**`.
 **Bandeja (`java.awt.SystemTray/TrayIcon`)**: sigue siendo la vía soportada (JavaFX no tiene API de bandeja hasta 27). Funciona en Windows 11 (el icono puede quedar en el desbordamiento; `displayMessage` se muestra como notificación). No se cambia; si se quisiera una API más cómoda existe la librería FXTrayIcon, que envuelve la misma API AWT.
 
 ## 3. Patrones aplicados
@@ -24,7 +24,9 @@ Con `-Xlint:all` (ya activo en el pom) y 23.0.2 no quedan avisos de deprecación
 - Los modelos de filas ya eran `record`.
 
 ## 4. Accesibilidad y tema
-- `Theme` + `vivanet.css`: colores como *looked-up colors* (`-vp-*`), tema claro/oscuro que sigue `Platform.getPreferences().colorSchemeProperty()` en vivo; los diálogos también reciben el tema.
+- `Theme` + `vivanet.css`: colores como *looked-up colors* (`-vp-*`). Modo Automático/Claro/Oscuro elegible en Configuración ("Tema", guardado en `ui.theme`). Automático: `SystemTheme` usa `Platform.getPreferences()` por reflexión si existe (JavaFX 22+, sigue el cambio en vivo); si no, en Windows lee una vez al arrancar `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize /v AppsUseLightTheme` (ruta absoluta con `SystemExecutables`, argumentos en lista, espera máx. 3 s, en hilo virtual); cualquier fallo o SO distinto = claro. Los diálogos también reciben el tema.
+- El foco del menú lateral se mueve al botón activo al navegar (ya no queda el contorno amarillo en otra pantalla).
+- Pendientes: la columna Motivo muestra un texto legible (`Formats.friendlyReason`); el motivo técnico completo sigue en el detalle.
 - Aviso superior ahora con botón "Cerrar aviso" (antes solo clic de ratón); nombre accesible.
 - Atajos Ctrl+1..7 entre pantallas, tooltips; `accessibleText` en tablas, filtros, sliders, detalle y totales del Tablero.
 - Estados siguen con símbolo y texto; borde "por verificar" discontinuo; foco visible con contorno grueso. Tablas con política de columnas que evita desborde horizontal.
@@ -41,4 +43,4 @@ Pendiente (DP-08): en Excel con configuración regional es-CO el separador de li
 - Hallazgos corregidos: texto de ayuda de campos casi invisible en tema oscuro; botón por defecto con bajo contraste en oscuro. Sin textos cortados salvo la columna "Motivo" de Pendientes (elipsis; el detalle muestra el texto completo).
 
 ## 7. Si se subiera a Java 25
-Usar JavaFX 25.0.x (LTS). Mejoras disponibles: `Scene.getPreferences`/color scheme por escena, `reducedMotion` y alto contraste en `Platform.Preferences`, mejor rendimiento de CSS. Ninguna es imprescindible: no se requiere migrar.
+Usar JavaFX 25.0.x (LTS): trae `Platform.Preferences` (seguimiento en vivo sin reflexión, ya cubierto), color scheme por escena y alto contraste. Ninguna es imprescindible; no se requiere migrar.

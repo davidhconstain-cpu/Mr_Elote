@@ -42,7 +42,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -133,8 +137,12 @@ public final class AndroidWebhookConnector extends AbstractConnector {
             return;
         }
 
-        httpExecutor = new ThreadPoolExecutor(2, 4, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(64),
-                daemon("android-webhook-http"), new ThreadPoolExecutor.AbortPolicy());
+        // Un hilo virtual por solicitud (Java 21): un cliente lento ya no agota un pool de 2-4 hilos de plataforma
+        // (riesgo R-01). La concurrencia sigue acotada a MAX_CONCURRENT_REQUESTS (antes 4 hilos + cola de 64);
+        // por encima se rechaza igual que hacía AbortPolicy. El camino de la solicitud solo entra en secciones
+        // synchronized cortas y sin E/S (RateLimiter, NonceCache, secretos en memoria), así que el "pinning"
+        // de Java 21 no bloquea portadores; la escritura en SQLite ocurre en ingestExecutor (hilos de plataforma).
+        httpExecutor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("android-webhook-http-", 1).factory());
         ingestExecutor = new ThreadPoolExecutor(1, 2, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(32),
                 daemon("android-webhook-ingest"), new ThreadPoolExecutor.AbortPolicy());
         processor.setIngestExecutor(ingestExecutor);
@@ -146,7 +154,7 @@ public final class AndroidWebhookConnector extends AbstractConnector {
             for (InetAddress addr : addresses) {
                 HttpServer server = create(new InetSocketAddress(addr, port));
                 server.createContext("/", this::handle);
-                server.setExecutor(httpExecutor);
+                server.setExecutor(bounded(httpExecutor, MAX_CONCURRENT_REQUESTS));
                 server.start();
                 started.add(server);
                 port = server.getAddress().getPort(); // con port=0, las demás direcciones usan el mismo
@@ -168,8 +176,8 @@ public final class AndroidWebhookConnector extends AbstractConnector {
             log.warn("Receptor Android: {}", w);
         }
         log.info("Receptor Android escuchando en {} (auth={}, tls={}).", endpoints, config.authMode(), config.tlsEnabled());
-        String detail = "Esperando eventos en " + endpoints.get(endpoints.size() - 1)
-                + (warn.isEmpty() ? "" : ". Advertencia: " + warn.get(0));
+        String detail = "Esperando eventos en " + endpoints.getLast()
+                + (warn.isEmpty() ? "" : ". Advertencia: " + warn.getFirst());
         if (isPaused()) {
             updateStatus(ConnectorStatus.PAUSADO, "Captura en pausa por el usuario");
         } else {
@@ -364,7 +372,7 @@ public final class AndroidWebhookConnector extends AbstractConnector {
     /** Puerto efectivo (útil con port=0), o -1 si no está iniciado. */
     public int boundPort() {
         List<HttpServer> s = servers;
-        return s.isEmpty() ? -1 : s.get(0).getAddress().getPort();
+        return s.isEmpty() ? -1 : s.getFirst().getAddress().getPort();
     }
 
     public boolean isRunning() {
@@ -422,7 +430,7 @@ public final class AndroidWebhookConnector extends AbstractConnector {
         if (eps.isEmpty()) {
             return new WebhookTestResult(false, 0, "El receptor Android no está iniciado.", Duration.ZERO);
         }
-        URI target = eps.get(0);
+        URI target = eps.getFirst();
         if (target.getHost().equals("0.0.0.0") || target.getHost().equals("[::]")) {
             target = URI.create(target.toString().replaceFirst("//[^/]+:", "//127.0.0.1:"));
         }
@@ -499,6 +507,28 @@ public final class AndroidWebhookConnector extends AbstractConnector {
         } finally {
             SecretBytes.wipe(pass);
         }
+    }
+
+    /** Limita las tareas simultáneas; si no hay cupo lanza {@link RejectedExecutionException} (como AbortPolicy). */
+    static Executor bounded(Executor delegate, int permits) {
+        Semaphore gate = new Semaphore(permits);
+        return task -> {
+            if (!gate.tryAcquire()) {
+                throw new RejectedExecutionException("Receptor Android saturado");
+            }
+            try {
+                delegate.execute(() -> {
+                    try {
+                        task.run();
+                    } finally {
+                        gate.release();
+                    }
+                });
+            } catch (RuntimeException e) {
+                gate.release();
+                throw e;
+            }
+        };
     }
 
     private static ThreadFactory daemon(String prefix) {

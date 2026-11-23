@@ -93,3 +93,7 @@
 
 .button { -fx-padding: 6 14 6 14; }
 .table-view .column-header-background { -fx-min-height: 32; }
+
+/* Texto de ayuda de los campos: legible en ambos temas (Modena lo deja casi invisible sobre fondo oscuro) */
+.text-input, .date-picker .text-input { -fx-prompt-text-fill: -vp-muted; }
+.root.dark .button:default { -fx-base: #2f6fb0; -fx-text-fill: white; }

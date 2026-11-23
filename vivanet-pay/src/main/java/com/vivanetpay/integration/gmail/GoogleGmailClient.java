@@ -159,20 +159,20 @@ final class GoogleGmailClient implements GmailClient {
 
     /** Traduce excepciones de Google a las del conector. */
     static IOException translate(IOException e, boolean history) {
-        int status = 0;
-        String reason = null;
-        String oauth = null;
-        if (e instanceof TokenResponseException t) {
-            status = t.getStatusCode();
-            oauth = t.getDetails() == null ? null : t.getDetails().getError();
-        } else if (e instanceof GoogleJsonResponseException g) {
-            status = g.getStatusCode();
-            if (g.getDetails() != null && g.getDetails().getErrors() != null && !g.getDetails().getErrors().isEmpty()) {
-                reason = g.getDetails().getErrors().get(0).getReason();
-            }
-        } else if (e instanceof HttpResponseException h) {
-            status = h.getStatusCode();
-        }
-        return GmailErrors.classify(status, reason, oauth, history, e);
+        // switch con patrones: el compilador exige que las subclases (TokenResponseException,
+        // GoogleJsonResponseException) vayan antes que HttpResponseException (dominancia).
+        return switch (e) {
+            case TokenResponseException t -> GmailErrors.classify(t.getStatusCode(), null,
+                    t.getDetails() == null ? null : t.getDetails().getError(), history, e);
+            case GoogleJsonResponseException g -> GmailErrors.classify(g.getStatusCode(), firstReason(g), null, history, e);
+            case HttpResponseException h -> GmailErrors.classify(h.getStatusCode(), null, null, history, e);
+            default -> GmailErrors.classify(0, null, null, history, e);
+        };
+    }
+
+    private static String firstReason(GoogleJsonResponseException g) {
+        var details = g.getDetails();
+        return details == null || details.getErrors() == null || details.getErrors().isEmpty()
+                ? null : details.getErrors().getFirst().getReason();
     }
 }

@@ -212,7 +212,7 @@ public final class IngestionService implements EventSink, AutoCloseable {
             };
             validations.add(new Validation(null, null, RULE_POLICY_PREFIX + policy.id(), pr, reason, now, Actors.SYSTEM));
         }
-        if (trail.get(trail.size() - 1) != finalStatus) {
+        if (trail.getLast() != finalStatus) {
             trail.add(finalStatus);
         }
 

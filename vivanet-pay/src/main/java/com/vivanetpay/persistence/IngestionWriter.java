@@ -49,7 +49,7 @@ public final class IngestionWriter {
             for (int i = 1; i < statusTrail.size(); i++) {
                 statusTrail.get(i - 1).requireTransitionTo(statusTrail.get(i));
             }
-            if (!statusTrail.isEmpty() && statusTrail.get(statusTrail.size() - 1) != event.status()) {
+            if (!statusTrail.isEmpty() && statusTrail.getLast() != event.status()) {
                 throw new IllegalArgumentException("El recorrido de estados no termina en el estado del evento");
             }
         }

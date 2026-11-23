@@ -6,12 +6,12 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.UrlEncodedContent;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.gmail.Gmail;
@@ -25,7 +25,6 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -60,13 +59,13 @@ public final class GoogleGmailAuth implements GmailAuth {
         this.dataStore = new SecretStoreDataStoreFactory(secrets, "gmail." + connectorId + ".");
     }
 
-    private synchronized HttpTransport transport() throws IOException {
+    /**
+     * {@code GoogleNetHttpTransport} está deprecado en google-api-client 2.9.x: Google recomienda
+     * {@link NetHttpTransport}, que usa el almacén de certificados del JDK (el mismo que ya cargaba aquel).
+     */
+    private synchronized HttpTransport transport() {
         if (transport == null) {
-            try {
-                transport = GoogleNetHttpTransport.newTrustedTransport();
-            } catch (GeneralSecurityException e) {
-                throw new IOException("No se pudo inicializar la conexión segura", e);
-            }
+            transport = new NetHttpTransport();
         }
         return transport;
     }

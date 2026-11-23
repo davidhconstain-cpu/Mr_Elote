@@ -118,7 +118,7 @@ class GmailOAuthSupportTest {
         hostile.add(new ArrayList<>(List.of("x")));
         hostile.add(new LinkedHashSet<>(List.of("x")));
         hostile.add(new java.util.PriorityQueue<>(List.of("x")));
-        hostile.add(new java.net.URL("http://127.0.0.1:1/x"));
+        hostile.add(java.net.URI.create("http://127.0.0.1:1/x").toURL());
         hostile.add(java.util.concurrent.TimeUnit.SECONDS);
         hostile.add(Integer.valueOf(7));
         hostile.add(new java.io.File("/etc/passwd"));

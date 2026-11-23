@@ -50,7 +50,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Conector Android/MacroDroid (tipo {@code android}, Flujo C): receptor HTTP(S) local con
@@ -73,6 +72,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class AndroidWebhookConnector extends AbstractConnector {
     private static final Logger log = LoggerFactory.getLogger(AndroidWebhookConnector.class);
+    /** Solicitudes HTTP simultáneas máximas (cada una en un hilo virtual). */
+    static final int MAX_CONCURRENT_REQUESTS = 64;
 
     static {
         // Anti "slowloris": el servidor JDK no limita por defecto cuánto tarda un cliente en enviar la solicitud/leer la
@@ -532,12 +533,7 @@ public final class AndroidWebhookConnector extends AbstractConnector {
     }
 
     private static ThreadFactory daemon(String prefix) {
-        AtomicInteger n = new AtomicInteger();
-        return r -> {
-            Thread t = new Thread(r, prefix + "-" + n.incrementAndGet());
-            t.setDaemon(true);
-            return t;
-        };
+        return Thread.ofPlatform().name(prefix + "-", 1).daemon(true).factory();
     }
 
     @Override

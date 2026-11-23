@@ -38,6 +38,11 @@ public final class Theme {
         return DARK.getReadOnlyProperty();
     }
 
+    /** Fuerza el tema (herramienta de capturas y pruebas). */
+    static void setDark(boolean dark) {
+        DARK.set(dark);
+    }
+
     /** Empieza a seguir el esquema del sistema (idempotente). */
     public static void followSystem() {
         if (listening) {

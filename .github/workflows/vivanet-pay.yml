@@ -98,12 +98,19 @@ jobs:
           v=$(mvn -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout)
           echo "app=${v%%-*}" >> "$GITHUB_OUTPUT"
           echo "jar=vivanet-pay-$v.jar" >> "$GITHUB_OUTPUT"
-      - name: Instalar WiX Toolset 3 (requerido por jpackage de JDK 21 para .msi)
-        run: choco install wixtoolset --version 3.14.1 -y --no-progress
+      - name: Preparar WiX Toolset 3 (requerido por jpackage de JDK 21 para .msi)
+        shell: pwsh
+        run: |
+          $bin = Get-ChildItem "${env:ProgramFiles(x86)}\WiX Toolset v3.*\bin" -Directory -ErrorAction SilentlyContinue | Select-Object -Last 1
+          if (-not $bin) {
+            choco install wixtoolset -y --no-progress
+            $bin = Get-ChildItem "${env:ProgramFiles(x86)}\WiX Toolset v3.*\bin" -Directory | Select-Object -Last 1
+          }
+          Write-Output "WiX en $($bin.FullName)"
+          $bin.FullName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Generar instalador .msi
         shell: bash
         run: |
-          export PATH="$PATH:/c/Program Files (x86)/WiX Toolset v3.14/bin"
           jpackage --type msi --name VivanetPay --app-version "${{ steps.version.outputs.app }}" \
             --vendor "Vivanet" --description "Vivanet Pay: avisos de transferencias entrantes" \
             --input target/libs --main-jar "${{ steps.version.outputs.jar }}" \

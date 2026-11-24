@@ -30,7 +30,7 @@ class ParsersFixturesTest {
     static Stream<Fixture> fixtures() throws IOException {
         List<Fixture> out = new ArrayList<>();
         try (InputStream in = ParsersFixturesTest.class.getResourceAsStream("/fixtures/parsers-v1.psv")) {
-            for (String line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\n")) {
+            for (String line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\\R")) {
                 if (line.isBlank() || line.startsWith("#")) {
                     continue;
                 }

@@ -1,0 +1,11 @@
+# Finales de línea estables en todas las plataformas (Windows convierte a CRLF por defecto).
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary
+*.p12 binary
+*.jar binary
+*.xlsx binary

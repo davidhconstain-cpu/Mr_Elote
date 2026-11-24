@@ -67,6 +67,7 @@ class QaWebhookHardeningTest {
         };
         Map<String, String> settings = new HashMap<>();
         settings.put("port", "0");
+        settings.put("auth", "hmac");
         connector = new AndroidWebhookConnector(new ConnectorDependencies("android-principal", sink,
                 app.ctx.connectorRepository(), new InMemorySecretStore(), settings, dir, app.clock));
         connector.start();

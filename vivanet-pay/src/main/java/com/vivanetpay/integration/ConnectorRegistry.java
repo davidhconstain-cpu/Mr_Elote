@@ -38,6 +38,15 @@ public final class ConnectorRegistry {
         connector.addStateListener(relay);
     }
 
+    /** Quita un conector (el llamador debe haberlo detenido). Devuelve el conector retirado, si existía. */
+    public Optional<Connector> unregister(String id) {
+        Connector c = connectors.remove(id);
+        if (c != null) {
+            c.removeStateListener(relay);
+        }
+        return Optional.ofNullable(c);
+    }
+
     public Optional<Connector> get(String id) {
         return Optional.ofNullable(connectors.get(id));
     }

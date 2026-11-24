@@ -55,8 +55,14 @@ class EndToEndSmokeTest {
 
     /** Arranque completo (Bootstrap) sin conectores por SPI; el Android real se registra con puerto efímero. */
     private void boot(String authMode) {
+        boot(authMode, false);
+    }
+
+    /** @param automatic true = política por defecto (DP-01: confirmación automática); false = modo conservador. */
+    private void boot(String authMode, boolean automatic) {
         speech = new LoggingSpeechEngine();
-        AppConfig config = AppConfig.of(dir, Map.of("backup.onStart", "false", "connectors.enabled", "none"));
+        AppConfig config = AppConfig.of(dir, Map.of("backup.onStart", "false", "connectors.enabled", "none",
+                "policy.automaticValidation", Boolean.toString(automatic)));
         Bootstrap.Result r = Bootstrap.start(AppContext.builder(config).clock(Clock.systemUTC()).speechEngine(speech));
         ctx = r.context();
         assertThat(r.databaseHealthy()).isTrue();
@@ -111,7 +117,7 @@ class EndToEndSmokeTest {
         HttpResponse<String> r = postToken(json("md-1-1", NEQUI_TEXT), token);
         assertThat(r.statusCode()).isEqualTo(202);
 
-        // transacción persistida SIN confirmar (política conservadora DP-01)
+        // transacción persistida SIN confirmar (modo conservador: policy.automaticValidation=false)
         assertThat(ctx.transactionRepository().count()).isEqualTo(1);
         var rows = ctx.reportingQueries().row(1L).orElseThrow();
         assertThat(rows.status()).isEqualTo(EventStatus.PARSEADO);

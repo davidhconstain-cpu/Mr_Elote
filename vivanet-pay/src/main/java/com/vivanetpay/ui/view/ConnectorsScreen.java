@@ -2,7 +2,9 @@ package com.vivanetpay.ui.view;
 
 import com.vivanetpay.integration.AuthorizableConnector;
 import com.vivanetpay.integration.Connector;
+import com.vivanetpay.app.LanReceiverSetup;
 import com.vivanetpay.integration.android.AndroidWebhookConnector;
+import com.vivanetpay.integration.android.LanAddresses;
 import com.vivanetpay.security.SecretBytes;
 import com.vivanetpay.ui.Background;
 import com.vivanetpay.ui.Formats;
@@ -56,7 +58,8 @@ public final class ConnectorsScreen implements Screen {
 
     /** Instantánea calculada fuera del hilo de UI (isAuthorized puede tocar el almacén de secretos). */
     private record Snapshot(Connector connector, ConnectorsViewModel vm, String account,
-                            ConnectorsViewModel.AndroidInfo android) {
+                            ConnectorsViewModel.AndroidInfo android, List<LanAddresses.Candidate> lan,
+                            String configuredLanIp) {
     }
 
     @Override
@@ -64,7 +67,10 @@ public final class ConnectorsScreen implements Screen {
         List<Connector> all = ctx.app.connectorRegistry().all().stream().sorted(Comparator.comparing(Connector::id)).toList();
         Background.run(() -> all.stream().map(c -> new Snapshot(c, ConnectorsViewModel.of(c),
                 c instanceof AuthorizableConnector ac && ac.isAuthorized() ? ac.authorizedAccount().orElse(null) : null,
-                c instanceof AndroidWebhookConnector a ? ConnectorsViewModel.AndroidInfo.of(a) : null)).toList(),
+                c instanceof AndroidWebhookConnector a ? ConnectorsViewModel.AndroidInfo.of(a) : null,
+                c instanceof AndroidWebhookConnector ? LanAddresses.detect() : List.<LanAddresses.Candidate>of(),
+                c instanceof AndroidWebhookConnector ? LanReceiverSetup.configuredLanIp(
+                        ctx.app.config().connectorSettings(c.type())) : null)).toList(),
                 this::render, e -> Ui.error("No se pudo leer el estado de los conectores", Ui.describe(e)));
     }
 
@@ -100,8 +106,11 @@ public final class ConnectorsScreen implements Screen {
                     + (info.endpoints().isEmpty() ? "no está escuchando" : String.join("  |  ", info.endpoints()))));
             box.getChildren().add(Ui.muted("Autenticación: " + (info.authMode().equals("token")
                     ? "token (Bearer, para MacroDroid)" : "firma HMAC") + " · HTTPS: " + (info.tls() ? "sí" : "no")));
+            // Con IP de red local configurada, la advertencia de "sin HTTPS" se explica en la sección Wi-Fi (sin alarmar).
             for (String w : info.warnings()) {
-                box.getChildren().add(Ui.text("⚠ " + w));
+                box.getChildren().add(snap.configuredLanIp() != null && w.contains("SIN HTTPS")
+                        ? Ui.muted("ℹ Conexión local sin cifrado (HTTP): úsala solo en tu Wi-Fi de confianza.")
+                        : Ui.text("⚠ " + w));
             }
             box.getChildren().add(Ui.muted(info.statsText()));
             if (info.previousSecretValidUntil() != null) {
@@ -199,7 +208,106 @@ public final class ConnectorsScreen implements Screen {
             buttons.getChildren().addAll(show, rotate, revokeSecret);
         }
         box.getChildren().add(buttons);
+        if (c instanceof AndroidWebhookConnector android) {
+            box.getChildren().add(wifiSection(snap, android));
+        }
         return box;
+    }
+
+    /** "Recibir desde mi teléfono en esta Wi-Fi" (DP-03/DP-04): elegir la IP privada del PC y copiar la URL. */
+    private Node wifiSection(Snapshot snap, AndroidWebhookConnector android) {
+        Label head = new Label("Recibir desde mi teléfono en esta Wi‑Fi");
+        head.getStyleClass().add("section-heading");
+        VBox sec = new VBox(8, head);
+        sec.setPadding(new Insets(10, 0, 0, 0));
+        sec.getChildren().add(Ui.muted("El teléfono y este computador deben estar en la misma Wi‑Fi. No se usa ningún "
+                + "servicio en la nube ni se abre nada hacia Internet."));
+        int port = ctx.app.config().getInt("connector.android.port",
+                com.vivanetpay.integration.android.AndroidWebhookConfig.DEFAULT_PORT);
+        String configured = snap.configuredLanIp();
+        if (configured != null) {
+            String url = LanReceiverSetup.webhookUrl(configured, port, android.tlsEnabled());
+            sec.getChildren().add(Ui.text("Recibiendo en la Wi‑Fi. Dirección para MacroDroid:"));
+            sec.getChildren().add(urlRow(url));
+            Button off = new Button("Volver a solo este equipo");
+            off.setOnAction(e -> {
+                if (Ui.confirm("Dejar de recibir desde el teléfono", "El receptor volverá a escuchar solo en este "
+                        + "computador y el teléfono no podrá enviar avisos hasta que lo vuelvas a activar. ¿Continuar?")) {
+                    act(() -> LanReceiverSetup.revert(ctx.app), "No se pudo cambiar la red del receptor");
+                }
+            });
+            sec.getChildren().add(off);
+        } else if (snap.lan().isEmpty()) {
+            sec.getChildren().add(Ui.text("No encontré una red Wi‑Fi o cable privada conectada. Conecta el computador a "
+                    + "tu Wi‑Fi y pulsa «Buscar de nuevo»."));
+        } else {
+            javafx.scene.control.ComboBox<LanAddresses.Candidate> pick = new javafx.scene.control.ComboBox<>();
+            pick.getItems().setAll(snap.lan());
+            pick.setConverter(new javafx.util.StringConverter<>() {
+                @Override
+                public String toString(LanAddresses.Candidate c) {
+                    return c == null ? "" : c.label();
+                }
+
+                @Override
+                public LanAddresses.Candidate fromString(String s) {
+                    return null;
+                }
+            });
+            pick.getSelectionModel().selectFirst();
+            Button use = new Button("Usar esta red");
+            use.setOnAction(e -> {
+                LanAddresses.Candidate sel = pick.getValue();
+                if (sel == null) {
+                    return;
+                }
+                use.setDisable(true);
+                Background.run(() -> LanReceiverSetup.apply(ctx.app, sel.ip()), url -> {
+                    refresh();
+                    ctx.shell.onPreferencesChanged();
+                    showUrl(url);
+                }, err -> {
+                    use.setDisable(false);
+                    Ui.error("No se pudo activar la recepción en la Wi‑Fi", Ui.describe(err));
+                    refresh();
+                });
+            });
+            sec.getChildren().add(new HBox(8, pick, use));
+        }
+        Button rescan = new Button("Buscar de nuevo");
+        rescan.setOnAction(e -> refresh());
+        sec.getChildren().add(rescan);
+        sec.getChildren().add(Ui.muted("ℹ Dentro de tu Wi‑Fi la conexión no va cifrada (HTTP). Es normal en una red de "
+                + "confianza; evita redes públicas o compartidas."));
+        sec.getChildren().add(Ui.muted("Windows puede pedir permiso para el puerto " + port + ". Si el teléfono no "
+                + "conecta, permite ese puerto en el Firewall solo para redes privadas (ver docs/MACRODROID.md)."));
+        return sec;
+    }
+
+    private Node urlRow(String url) {
+        TextField field = new TextField(url);
+        field.setEditable(false);
+        field.setPrefColumnCount(34);
+        Button copy = new Button("Copiar");
+        copy.setOnAction(e -> {
+            javafx.scene.input.ClipboardContent cc = new javafx.scene.input.ClipboardContent();
+            cc.putString(url);
+            javafx.scene.input.Clipboard.getSystemClipboard().setContent(cc);
+            copy.setText("Copiado");
+        });
+        return new HBox(8, field, copy);
+    }
+
+    private void showUrl(String url) {
+        VBox content = new VBox(10, Ui.text("Pega esta dirección en MacroDroid (acción HTTP Request, método POST):"),
+                urlRow(url), Ui.muted("Usa la misma dirección siempre que el computador conserve su IP. Si cambias de "
+                        + "Wi‑Fi o el router asigna otra IP, vuelve a esta pantalla."));
+        Dialog<Void> d = new Dialog<>();
+        d.setTitle("Recibir desde mi teléfono");
+        d.setHeaderText("Listo: el receptor escucha en tu Wi‑Fi");
+        d.getDialogPane().setContent(content);
+        d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        d.showAndWait();
     }
 
     /** Muestra el secreto oculto por defecto; al cerrar se borra de memoria y de los controles. Nunca se registra. */

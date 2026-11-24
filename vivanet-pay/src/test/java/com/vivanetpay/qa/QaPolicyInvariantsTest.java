@@ -26,8 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Invariantes de negocio (RN-001, RN-003, RN-008, RF-011): NINGÚN camino automático produce "pago confirmado" con la
- * política por defecto, y la única vía es la validación manual o una política explícitamente habilitada.
+ * Invariantes de negocio (RN-001, RN-003, RN-008, RF-011). Con el modo conservador ({@code policy.automaticValidation=false})
+ * NINGÚN camino automático produce "pago confirmado": la única vía es la validación manual. Con el valor por defecto
+ * (DP-01 decidida) solo confirman las reglas estrictas de {@code TrustedSourceValidationPolicy}; ver
+ * {@code TrustedSourcePolicyTest}. Estas pruebas fijan el modo conservador de forma explícita.
  */
 class QaPolicyInvariantsTest {
     @TempDir
@@ -92,8 +94,8 @@ class QaPolicyInvariantsTest {
     }
 
     @Test
-    void conLaPoliticaPorDefectoNingunCaminoAutomaticoConfirma() throws Exception {
-        app = TestApp.create(dir);
+    void conElModoConservadorNingunCaminoAutomaticoConfirma() throws Exception {
+        app = TestApp.create(dir, Map.of("policy.automaticValidation", "false"));
         ingestAll(EventSource.ANDROID_NEQUI, "and-");
         ingestAll(EventSource.GMAIL, "gm-");
         assertNothingConfirmed();
@@ -101,7 +103,7 @@ class QaPolicyInvariantsTest {
 
     @Test
     void validacionAutomaticaSinFuentesDeConfianzaTampocoConfirma() throws Exception {
-        app = TestApp.create(dir, Map.of("policy.automaticValidation", "true"));
+        app = TestApp.create(dir, Map.of("policy.automaticValidation", "true", "policy.trustedSources", ""));
         ingestAll(EventSource.ANDROID_NEQUI, "and-");
         ingestAll(EventSource.GMAIL, "gm-");
         assertNothingConfirmed();
@@ -109,33 +111,40 @@ class QaPolicyInvariantsTest {
 
     @Test
     void fuentesDeConfianzaSinLaBanderaTampocoConfirman() throws Exception {
-        app = TestApp.create(dir, Map.of("policy.trustedSources", "ANDROID_NEQUI,GMAIL"));
+        app = TestApp.create(dir, Map.of("policy.automaticValidation", "false", "policy.trustedSources", "ANDROID_NEQUI,GMAIL"));
         ingestAll(EventSource.ANDROID_NEQUI, "and-");
         ingestAll(EventSource.GMAIL, "gm-");
         assertNothingConfirmed();
     }
 
     @Test
-    void optInExplicitoConfirmaSoloLaFuenteConfiguradaYSoloEventosLimpios() throws Exception {
-        app = TestApp.create(dir, Map.of("policy.automaticValidation", "true", "policy.trustedSources", "ANDROID_NEQUI"));
-        IngestionResult clean = app.ctx.ingestionService().ingest(app.nequi("ok-1", "Ana te envió $50.000"));
+    void conLasReglasPorDefectoSoloConfirmaElWebhookAutenticadoConParserNequiYEventosLimpios() throws Exception {
+        app = TestApp.createReal(dir, Map.of());
+        IngestionResult clean = app.ctx.ingestionService().ingest(authenticatedNequi("ok-1", "Ana te envió $50.000"));
         assertThat(clean.status()).isEqualTo(EventStatus.VALIDADO_POR_FUENTE);
         app.clock.advance(Duration.ofHours(1));
-        assertThat(app.ctx.ingestionService().ingest(app.gmail("gm-1", "Beto te envió $50.000")).status().isConfirmed()).isFalse();
-        assertThat(app.ctx.ingestionService().ingest(app.nequi("low-1", "Ana te envió $7.000 [baja]")).status().isConfirmed()).isFalse();
-        assertThat(app.ctx.ingestionService().ingest(app.nequi("usd-1", "Ana te envió $7.000 [USD]")).status().isConfirmed()).isFalse();
-        assertThat(app.ctx.ingestionService().ingest(app.nequi("zero-1", "Ana te envió $0")).status().isConfirmed()).isFalse();
-        assertThat(app.ctx.ingestionService().ingest(app.nequi("raro-1", "texto sin plantilla")).status().isConfirmed()).isFalse();
-        assertThat(app.ctx.ingestionService().ingest(app.nequi("ok-1", "Ana te envió $50.000")).status())
+        assertThat(app.ctx.ingestionService().ingest(app.gmail("gm-1", "Beto te envió $50.000")).status().isConfirmed())
+                .as("correo sin cabeceras de autenticación").isFalse();
+        assertThat(app.ctx.ingestionService().ingest(app.nequi("noauth-1", "Ana te envió $7.000")).status().isConfirmed())
+                .as("sin la marca del webhook autenticado").isFalse();
+        assertThat(app.ctx.ingestionService().ingest(authenticatedNequi("zero-1", "Ana te envió $0")).status().isConfirmed()).isFalse();
+        assertThat(app.ctx.ingestionService().ingest(authenticatedNequi("raro-1", "texto sin plantilla")).status().isConfirmed()).isFalse();
+        assertThat(app.ctx.ingestionService().ingest(authenticatedNequi("ok-1", "Ana te envió $50.000")).status())
                 .as("el reenvío del confirmado es duplicado, no un segundo pago").isEqualTo(EventStatus.DUPLICADO);
         assertThat(app.ctx.voiceService().awaitIdle(Duration.ofSeconds(10))).isTrue();
         assertThat(app.speech.spoken()).filteredOn(s -> s.startsWith("Pago recibido")).hasSize(1);
         assertThat(app.ctx.dashboardService().today().confirmedTotal()).isEqualTo(50_000L);
     }
 
+    private RawEvent authenticatedNequi(String id, String text) {
+        return RawEvent.builder(EventSource.ANDROID_NEQUI, "android-principal").externalEventId(id)
+                .sourceTimestamp(app.clock.instant()).receivedAt(app.clock.instant()).sender("com.nequi.MobileApp")
+                .headers(Map.of("webhook.auth", "token")).rawText(text).build();
+    }
+
     @Test
     void laValidacionManualEsLaUnicaViaYNoSePuedeAplicarAEstadosTerminales() throws Exception {
-        app = TestApp.create(dir);
+        app = TestApp.create(dir, Map.of("policy.automaticValidation", "false"));
         long pending = app.ctx.ingestionService().ingest(app.nequi("m-1", "Ana te envió $50.000")).eventId();
         long rejected = app.ctx.ingestionService().ingest(app.nequi("m-2", "Ana te envió $0")).eventId();
         long duplicate = app.ctx.ingestionService().ingest(app.nequi("m-1", "Ana te envió $50.000")).eventId();
@@ -163,7 +172,7 @@ class QaPolicyInvariantsTest {
 
     @Test
     void anuncioTrasValidacionManualEsOptInYUsaLaFraseDePagoRecibido() throws Exception {
-        app = TestApp.create(dir, Map.of("policy.announceOnManualValidation", "true"));
+        app = TestApp.create(dir, Map.of("policy.automaticValidation", "false", "policy.announceOnManualValidation", "true"));
         long id = app.ctx.ingestionService().ingest(app.nequi("v-1", "Ana te envió $125.000")).eventId();
         app.ctx.voiceService().awaitIdle(Duration.ofSeconds(5));
         assertThat(app.speech.spoken()).containsExactly("Nueva notificación de Nequi por 125.000 pesos. Verifica el pago.");

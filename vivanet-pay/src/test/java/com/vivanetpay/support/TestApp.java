@@ -19,29 +19,34 @@ public final class TestApp {
     public final LoggingSpeechEngine speech;
     public final AppContext ctx;
 
-    private TestApp(Path dir, Map<String, String> props, Instant start) {
+    private TestApp(Path dir, Map<String, String> props, Instant start, boolean realParsers) {
         this.clock = new MutableClock(start);
         this.speech = new LoggingSpeechEngine();
         Map<String, String> all = new HashMap<>();
         all.put("backup.onStart", "false");
         all.putAll(props);
-        this.ctx = AppContext.builder(AppConfig.of(dir, all))
-                .clock(clock)
-                .speechEngine(speech)
-                .parser(new FakeNequiParser())
-                .build();
+        AppContext.Builder b = AppContext.builder(AppConfig.of(dir, all)).clock(clock).speechEngine(speech);
+        if (!realParsers) {
+            b.parser(new FakeNequiParser());
+        }
+        this.ctx = b.build();
     }
 
     public static TestApp create(Path dir) {
-        return new TestApp(dir, Map.of(), T0);
+        return new TestApp(dir, Map.of(), T0, false);
     }
 
     public static TestApp create(Path dir, Map<String, String> props) {
-        return new TestApp(dir, props, T0);
+        return new TestApp(dir, props, T0, false);
     }
 
     public static TestApp create(Path dir, Map<String, String> props, Instant start) {
-        return new TestApp(dir, props, start);
+        return new TestApp(dir, props, start, false);
+    }
+
+    /** Contexto con los parsers REALES por defecto (Nequi push/correo, Bancolombia) y la política por defecto. */
+    public static TestApp createReal(Path dir, Map<String, String> props) {
+        return new TestApp(dir, props, T0, true);
     }
 
     /** Evento Android Nequi con texto dado. */

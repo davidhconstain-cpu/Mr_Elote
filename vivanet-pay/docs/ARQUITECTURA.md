@@ -29,7 +29,7 @@ mvn javafx:run                                  # requiere com.vivanetpay.ui.Mai
 | `integration.android` | receptor webhook (HMAC o token, timestamp, nonce, límites; TLS opcional; por defecto en 127.0.0.1) para MacroDroid | **agente Android** |
 | `voice` | `VoiceService`, `AnnouncementQueue` (1 hilo, sin solapamientos), `SpeechEngine`, `LoggingSpeechEngine`, `AnnouncementMessages` | cola: núcleo; motor Windows: **agente UI/voz** |
 | `security` | `SecretStore`; `WindowsSecretStore` (DPAPI vía PowerShell, Windows), `FileSecretStore` (archivo con permisos POSIX 600, sin cifrar: solo desarrollo/Linux), `InMemorySecretStore` (pruebas); `SecretStores` elige según el SO | agente seguridad |
-| `reporting` | `DashboardSummary`, `BankBreakdown`, `HistoryFilter`, `HistoryRow`, `CsvExporter` (exportación CSV) | agente UI/reportes |
+| `reporting` | `DashboardSummary`, `BankBreakdown`, `HistoryFilter`, `HistoryRow`, `CsvExporter` (CSV con `;`), `XlsxExporter` (Excel .xlsx sin dependencias) | agente UI/reportes |
 | `observability` | `Redactor`, conversores Logback `%rmsg`/`%rex`, `Correlation` (MDC `cid`) | núcleo |
 | `licensing` | `LicenseService` (prueba 14 días, reloj retrocedido ⇒ `SOSPECHOSO`) | núcleo |
 | `app` | `AppConfig`, `AppContext` (composición manual), `Bootstrap`, `HeadlessMain` | núcleo |
@@ -57,16 +57,16 @@ mvn javafx:run                                  # requiere com.vivanetpay.ui.Mai
 - Idempotencia: `idempotency_key` UNIQUE (`ext:FUENTE:id` o `fp:sha256`), UNIQUE parcial `(source, external_id)` y `fingerprint`; la decisión y la inserción ocurren en la misma transacción IMMEDIATE.
 - RN-008: triggers impiden DELETE de eventos/movimientos/auditoría, UPDATE de auditoría y de movimientos, y modificar el contenido original del evento.
 
-## Decisiones provisionales (no resuelven las DP)
+## Decisiones (provisionales o decididas por el propietario el 24/11/2026)
 
 | DP | Decisión provisional configurable |
 |---|---|
-| DP-01 | `ConservativeValidationPolicy`: ningún evento automático queda `VALIDADO_POR_FUENTE`. Eventos completos ⇒ `PARSEADO`; dudosos ⇒ `PENDIENTE_REVISION`; ambos se anuncian como "Nueva notificación… Verifica el pago." Solo `ReviewService.validate` (Flujo D) confirma. Activable: `policy.automaticValidation`, `policy.trustedSources` (vacío por defecto). |
+| DP-01 (decidida) | `TrustedSourceValidationPolicy` (por defecto): confirma automáticamente (`VALIDADO_POR_FUENTE`, actor SISTEMA, regla `AUTO_ANDROID_NEQUI` / `AUTO_GMAIL_DKIM` en `validation` y `audit_log`) solo si cumple las reglas estrictas de la fuente; todo lo demás sigue el flujo de `ConservativeValidationPolicy` (`PARSEADO`/`PENDIENTE_REVISION` con "Verifica el pago"). Un evento de otra fuente que coincide con uno ya confirmado va a revisión (CP-014). `policy.automaticValidation=false` o el interruptor de Configuración restauran el modo conservador. |
 | DP-09 | La voz no dice el remitente (`voice.includeSender=false`); volumen 80, velocidad 0. |
 | DP-12 | Revisión exige actor no vacío y motivo para descartar; no se corrigen importes; un evento sin importe no puede confirmarse; un posible duplicado de un evento ya confirmado no se confirma sin motivo explícito de "pago distinto" (R-04). |
 | DP-07 | Licencia local de 14 días; reloj retrocedido > 10 min ⇒ `SOSPECHOSO` persistente. Sin validación en línea. `license.enforce=false`: solo informa. |
 | DP-05/DP-10 | Respaldo al iniciar (`backup.onStart=true`) en el mismo disco, sin retención automática; logs: 10 MB/archivo, 30 días, tope 300 MB. |
-| DP-03/DP-04 | El receptor Android existe (`integration.android`); su ubicación/exposición definitiva sigue pendiente (hoy solo 127.0.0.1 o IP privada concreta; TLS obligatorio si no es privada). |
-| DP-08 | Exportación CSV disponible (`reporting.CsvExporter`); formato Excel pendiente. |
+| DP-03/DP-04 (decididas) | Misma red Wi‑Fi, sin servicio en la nube. El receptor escucha en `127.0.0.1` y, si el usuario lo activa en Conectores («Recibir desde mi teléfono en esta Wi‑Fi», `app.LanReceiverSetup` + `integration.android.LanAddresses`), en una IPv4 privada elegida; IP pública sin TLS no arranca; `0.0.0.0` bloqueado. Autenticación `token` por defecto (`hmac` opcional). |
+| DP-08 (decidida) | CSV con `;` (`export.csv.separator`) y Excel `.xlsx` generado a mano con `java.util.zip` (`reporting.XlsxExporter`, sin dependencias nuevas). |
 
 Otros: el tablero separa "confirmados" de "por verificar" y excluye DUPLICADO/RECHAZADO/ERROR. `ANUNCIADO` solo se alcanza desde `VALIDADO_POR_FUENTE`; para posibles pagos el anuncio queda en `voice_announcement` y en `payment_event.announced_at`. Coincidencia parcial (mismo importe, remitente compatible, ±10 min, otra fuente o sin id externo) ⇒ `PENDIENTE_REVISION` (CP-014). Importes con centavos distintos de cero no se redondean y van a revisión.

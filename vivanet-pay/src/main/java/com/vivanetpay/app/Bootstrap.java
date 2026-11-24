@@ -87,10 +87,7 @@ public final class Bootstrap {
                     continue;
                 }
                 try {
-                    String id = provider.defaultConnectorId();
-                    Connector connector = provider.create(new ConnectorDependencies(id, ctx.ingestionService(),
-                            ctx.connectorRepository(), ctx.secretStore(), config.connectorSettings(type),
-                            config.dataDir(), ctx.clock()));
+                    Connector connector = create(ctx, provider, type);
                     ctx.connectorRepository().saveState(connector.state());
                     ctx.connectorRegistry().register(connector);
                     started.add(connector.id());
@@ -101,5 +98,49 @@ public final class Bootstrap {
             ctx.connectorRegistry().startAll();
         }
         return new Result(ctx, problems, license, List.copyOf(started), List.copyOf(missing));
+    }
+
+    private static Connector create(AppContext ctx, ConnectorProvider provider, ConnectorType type) {
+        AppConfig config = ctx.config();
+        return provider.create(new ConnectorDependencies(provider.defaultConnectorId(), ctx.ingestionService(),
+                ctx.connectorRepository(), ctx.secretStore(), config.connectorSettings(type), config.dataDir(),
+                ctx.clock()));
+    }
+
+    /**
+     * Detiene, vuelve a crear con la configuración actual y arranca el conector del tipo dado (p. ej. tras cambiar
+     * {@code connector.android.bindAddress}). Conserva el estado de pausa. Devuelve el conector nuevo, o null si
+     * no existía uno de ese tipo registrado o no hay implementación.
+     */
+    public static Connector restartConnector(AppContext ctx, ConnectorType type) {
+        return restartConnector(ctx, type, null);
+    }
+
+    /** Como {@link #restartConnector(AppContext, ConnectorType)} con un proveedor explícito (null = descubrirlo por SPI). */
+    static Connector restartConnector(AppContext ctx, ConnectorType type, ConnectorProvider explicit) {
+        Connector old = ctx.connectorRegistry().all().stream().filter(c -> c.type() == type).findFirst().orElse(null);
+        if (old == null) {
+            return null;
+        }
+        ConnectorProvider provider = explicit;
+        for (ConnectorProvider p : ServiceLoader.load(ConnectorProvider.class)) {
+            if (provider == null && p.type() == type) {
+                provider = p;
+            }
+        }
+        if (provider == null) {
+            return null;
+        }
+        boolean paused = old.state().status() == com.vivanetpay.domain.ConnectorStatus.PAUSADO;
+        old.stop();
+        ctx.connectorRegistry().unregister(old.id());
+        Connector fresh = create(ctx, provider, type);
+        ctx.connectorRegistry().register(fresh);
+        fresh.start();
+        if (paused) {
+            fresh.pause();
+        }
+        ctx.connectorRepository().saveState(fresh.state());
+        return fresh;
     }
 }

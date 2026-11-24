@@ -210,7 +210,7 @@ public final class IngestionService implements EventSink, AutoCloseable {
                 case RECHAZADO -> ValidationResult.FALLIDO;
                 default -> ValidationResult.ADVERTENCIA;
             };
-            validations.add(new Validation(null, null, RULE_POLICY_PREFIX + policy.id(), pr, reason, now, Actors.SYSTEM));
+            validations.add(new Validation(null, null, RULE_POLICY_PREFIX + (decision.rule() != null ? decision.rule() : policy.id()), pr, reason, now, Actors.SYSTEM));
         }
         if (trail.getLast() != finalStatus) {
             trail.add(finalStatus);

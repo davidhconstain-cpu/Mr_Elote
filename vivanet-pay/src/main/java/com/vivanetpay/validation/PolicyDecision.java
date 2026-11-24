@@ -11,8 +11,14 @@ import java.util.Objects;
  * @param status       PARSEADO, PENDIENTE_REVISION, VALIDADO_POR_FUENTE o RECHAZADO
  * @param announcement tipo de anuncio; PAGO_CONFIRMADO solo si status es VALIDADO_POR_FUENTE
  * @param reason       motivo legible
+ * @param rule         regla de política aplicada (p. ej. {@code AUTO_ANDROID_NEQUI}); nullable. Se registra en la
+ *                     tabla validation junto con el actor SISTEMA.
  */
-public record PolicyDecision(EventStatus status, AnnouncementKind announcement, String reason) {
+public record PolicyDecision(EventStatus status, AnnouncementKind announcement, String reason, String rule) {
+    public PolicyDecision(EventStatus status, AnnouncementKind announcement, String reason) {
+        this(status, announcement, reason, null);
+    }
+
     public PolicyDecision {
         Objects.requireNonNull(status, "status");
         Objects.requireNonNull(announcement, "announcement");

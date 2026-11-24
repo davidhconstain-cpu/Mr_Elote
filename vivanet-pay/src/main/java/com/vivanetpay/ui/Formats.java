@@ -100,6 +100,9 @@ public final class Formats {
         if (r.startsWith("Importe malformado")) {
             return "No se pudo leer el importe del mensaje";
         }
+        if (r.startsWith("Confirmado automáticamente")) {
+            return "Confirmado automáticamente por fuente verificada";
+        }
         if (r.startsWith("Posible pago: requiere verificación manual")) {
             return "Posible pago: verifícalo en tu banco";
         }

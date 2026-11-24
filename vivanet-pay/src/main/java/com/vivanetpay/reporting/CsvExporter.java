@@ -15,9 +15,10 @@ import java.util.List;
 /**
  * Exportación CSV del historial filtrado (RF-020).
  * <p>
- * NOTA DP-08 (formato de exportación pendiente): solo se implementa CSV. Excel/PDF quedan para cuando se cierre
- * la decisión. El archivo es UTF-8 con BOM (Excel en Windows lo reconoce y respeta las tildes), separador coma,
- * fin de línea CRLF, importes en pesos enteros sin separadores y horas en America/Bogota.
+ * DP-08 decidida: separador {@code ;} por defecto (Excel en configuración regional colombiana espera punto y coma;
+ * configurable con {@code export.csv.separator}) y, además, Excel .xlsx ({@link XlsxExporter}). El archivo es UTF-8
+ * con BOM (Excel en Windows lo reconoce y respeta las tildes), fin de línea CRLF, importes en pesos enteros sin
+ * separador de miles (Excel los suma) y horas en America/Bogota.
  * <p>
  * Protección contra inyección de fórmulas (CSV injection): todo texto libre que empiece por {@code = + - @},
  * tabulación, retorno de carro o salto de línea se antepone con una comilla simple.
@@ -25,6 +26,7 @@ import java.util.List;
 public final class CsvExporter {
     public static final char BOM = '﻿';
     public static final String EOL = "\r\n";
+    public static final char DEFAULT_SEPARATOR = ';';
     static final List<String> HEADER = List.of("ID evento", "Fecha y hora (America/Bogota)", "Fuente", "Conector",
             "Entidad", "Monto (COP)", "Remitente", "Referencia", "Estado", "Motivo del estado", "Recibido (America/Bogota)");
 
@@ -33,9 +35,25 @@ public final class CsvExporter {
 
     /** Escribe el CSV (con BOM) en el flujo; no lo cierra. */
     public static void write(List<HistoryRow> rows, OutputStream out) throws IOException {
+        write(rows, out, DEFAULT_SEPARATOR);
+    }
+
+    /** Separador desde texto de configuración ({@code export.csv.separator}): uno de ; , tab |; otro valor => ';'. */
+    public static char parseSeparator(String configured) {
+        if (configured == null || configured.isEmpty()) {
+            return DEFAULT_SEPARATOR;
+        }
+        String c = configured.strip();
+        if (c.equalsIgnoreCase("tab") || c.equals("\\t") || configured.equals("\t")) {
+            return '\t';
+        }
+        return c.length() == 1 && ";,|".indexOf(c.charAt(0)) >= 0 ? c.charAt(0) : DEFAULT_SEPARATOR;
+    }
+
+    public static void write(List<HistoryRow> rows, OutputStream out, char separator) throws IOException {
         Writer w = new OutputStreamWriter(out, StandardCharsets.UTF_8);
         w.write(BOM);
-        w.write(line(HEADER));
+        w.write(line(HEADER, separator));
         for (HistoryRow r : rows) {
             w.write(line(List.of(
                     Long.toString(r.eventId()),
@@ -48,14 +66,18 @@ public final class CsvExporter {
                     nz(r.reference()),
                     statusText(r.status()),
                     nz(r.statusReason()),
-                    AppTime.format(r.receivedAt()))));
+                    AppTime.format(r.receivedAt())), separator));
         }
         w.flush();
     }
 
     public static void write(List<HistoryRow> rows, Path file) throws IOException {
+        write(rows, file, DEFAULT_SEPARATOR);
+    }
+
+    public static void write(List<HistoryRow> rows, Path file, char separator) throws IOException {
         try (OutputStream out = Files.newOutputStream(file)) {
-            write(rows, out);
+            write(rows, out, separator);
         }
     }
 
@@ -78,13 +100,13 @@ public final class CsvExporter {
         return s == null ? "" : s;
     }
 
-    private static String line(List<String> fields) {
+    private static String line(List<String> fields, char sep) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < fields.size(); i++) {
             if (i > 0) {
-                sb.append(',');
+                sb.append(sep);
             }
-            sb.append(escape(fields.get(i)));
+            sb.append(escape(fields.get(i), sep));
         }
         return sb.append(EOL).toString();
     }
@@ -94,10 +116,14 @@ public final class CsvExporter {
      * (recomendación OWASP "CSV Injection": comilla simple inicial + campo entrecomillado).
      */
     public static String escape(String value) {
+        return escape(value, DEFAULT_SEPARATOR);
+    }
+
+    public static String escape(String value, char separator) {
         String raw = value == null ? "" : value;
         String v = neutralizeFormula(raw);
         boolean neutralized = v.length() != raw.length();
-        boolean quote = neutralized || v.indexOf(',') >= 0 || v.indexOf('"') >= 0 || v.indexOf('\n') >= 0
+        boolean quote = neutralized || v.indexOf(separator) >= 0 || v.indexOf(',') >= 0 || v.indexOf('"') >= 0 || v.indexOf('\n') >= 0
                 || v.indexOf('\r') >= 0;
         if (quote) {
             return '"' + v.replace("\"", "\"\"") + '"';

@@ -29,7 +29,7 @@ import com.vivanetpay.persistence.ValidationRepository;
 import com.vivanetpay.persistence.VoiceAnnouncementRepository;
 import com.vivanetpay.security.InMemorySecretStore;
 import com.vivanetpay.security.SecretStore;
-import com.vivanetpay.validation.ConservativeValidationPolicy;
+import com.vivanetpay.validation.TrustedSourceValidationPolicy;
 import com.vivanetpay.validation.EventValidator;
 import com.vivanetpay.validation.IdempotencyEngine;
 import com.vivanetpay.validation.ValidationPolicy;
@@ -106,7 +106,7 @@ public final class AppContext implements AutoCloseable {
         this.eventBus = new AppEventBus();
         // Sin parsers explícitos se usan los reales del MVP (nadie debe olvidarlos); las pruebas pueden sobrescribirlos.
         this.parserRegistry = new ParserRegistry(b.parsers.isEmpty() ? DefaultParsers.all() : b.parsers);
-        this.validationPolicy = b.policy != null ? b.policy : new ConservativeValidationPolicy(config.policyConfig());
+        this.validationPolicy = b.policy != null ? b.policy : new TrustedSourceValidationPolicy(config.policyConfig());
         this.speechEngine = b.speechEngine != null ? b.speechEngine : new LoggingSpeechEngine();
         AnnouncementQueue queue = new AnnouncementQueue(speechEngine, config.voiceSettings(), clock,
                 config.announcementMaxAge());
@@ -180,6 +180,25 @@ public final class AppContext implements AutoCloseable {
     public AppEventBus eventBus() { return eventBus; }
     public ParserRegistry parserRegistry() { return parserRegistry; }
     public ValidationPolicy validationPolicy() { return validationPolicy; }
+
+    /** true si la confirmación automática de fuentes verificadas está activa (DP-01). */
+    public boolean automaticValidationEnabled() { return validationPolicy.config().automaticValidationEnabled(); }
+
+    /**
+     * Interruptor de Configuración: persiste {@code policy.automaticValidation} y lo aplica de inmediato a los eventos
+     * siguientes (no cambia el estado de los ya registrados).
+     */
+    public void setAutomaticValidation(boolean enabled, String actor) {
+        boolean before = automaticValidationEnabled();
+        config.set("policy.automaticValidation", Boolean.toString(enabled));
+        if (validationPolicy instanceof TrustedSourceValidationPolicy t) {
+            t.setAutomaticValidationEnabled(enabled);
+        }
+        auditRepository.insert(new com.vivanetpay.domain.AuditEntry(null, com.vivanetpay.domain.AuditEntry.ENTITY_SETTING,
+                "policy.automaticValidation", com.vivanetpay.domain.AuditEntry.ACTION_SETTING_CHANGE,
+                Boolean.toString(before), Boolean.toString(enabled), actor == null ? "operador" : actor,
+                "Confirmación automática de pagos de fuentes verificadas", null, clock.instant()));
+    }
     public SpeechEngine speechEngine() { return speechEngine; }
     public VoiceService voiceService() { return voiceService; }
     /** Implementación de {@link com.vivanetpay.application.EventSink} para conectores. */

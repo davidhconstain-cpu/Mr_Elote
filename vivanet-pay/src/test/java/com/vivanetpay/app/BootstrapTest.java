@@ -89,12 +89,19 @@ class BootstrapTest {
     }
 
     @Test
-    void configuracionPorDefectoEsConservadora() {
+    void configuracionPorDefectoSegunLasDecisionesDelPropietario() {
         AppConfig c = AppConfig.of(dir, Map.of());
         assertThat(c.enabledConnectors()).extracting(t -> t.configKey()).containsExactly("gmail", "android");
         assertThat(AppConfig.of(dir, Map.of("connectors.enabled", "none")).enabledConnectors()).isEmpty();
-        assertThat(c.policyConfig().automaticValidationEnabled()).isFalse();
-        assertThat(c.policyConfig().trustedSources()).isEmpty();
+        // DP-01 decidida: confirmación automática de fuentes verificadas
+        assertThat(c.policyConfig().automaticValidationEnabled()).isTrue();
+        assertThat(c.policyConfig().trustedSources()).containsExactlyInAnyOrder(
+                com.vivanetpay.domain.EventSource.ANDROID_NEQUI, com.vivanetpay.domain.EventSource.GMAIL);
+        // modo conservador disponible por configuración
+        assertThat(AppConfig.of(dir, Map.of("policy.automaticValidation", "false")).policyConfig().automaticValidationEnabled()).isFalse();
+        assertThat(AppConfig.of(dir, Map.of("policy.trustedSources", "")).policyConfig().trustedSources()).isEmpty();
+        // DP-08: CSV con punto y coma
+        assertThat(c.csvSeparator()).isEqualTo(';');
         assertThat(c.voiceSettings().includeSender()).isFalse();
         assertThat(c.licenseEnforce()).isFalse();
     }

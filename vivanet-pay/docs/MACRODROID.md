@@ -3,8 +3,11 @@
 Esta guía explica, paso a paso, cómo hacer que el celular donde llegan las notificaciones de **Nequi** avise
 automáticamente a **Vivanet Pay** en el computador. No necesita conocimientos técnicos; siga los pasos en orden.
 
-> **Importante:** una notificación de Nequi **no es prueba de que el dinero llegó**. Vivanet Pay la muestra como
-> "Nueva notificación… verifica el pago". Confirme siempre en la app de Nequi antes de entregar el producto.
+> **Importante:** una notificación de Nequi **no es un comprobante bancario**. Por decisión del propietario
+> (DP-01), Vivanet Pay **confirma automáticamente** los avisos de Nequi que llegan por este canal autenticado y
+> cumplen reglas estrictas (ver `docs/DECISIONES_PENDIENTES.md`); los demás quedan "por verificar". Ante cualquier
+> duda, revise la app de Nequi. Puede volver al modo manual en *Configuración → Confirmar automáticamente pagos de
+> fuentes verificadas*.
 
 ---
 
@@ -17,22 +20,24 @@ Necesita:
 3. El **computador** con Vivanet Pay abierto.
 4. Que el celular y el computador estén conectados a **la misma red Wi-Fi** del negocio.
 
-> **Nunca abra ni "redireccione" este puerto en el router (módem) hacia Internet.** El receptor está pensado
-> solo para su red Wi-Fi privada. Si el celular y el computador van a estar en redes distintas (por ejemplo, el
-> celular con datos móviles), **no** lo resuelva abriendo puertos: esa opción todavía está en evaluación
-> (decisiones DP-03/DP-04) y requiere un servicio intermedio seguro.
+> **Nunca abra ni "redireccione" este puerto en el router (módem) hacia Internet.** Decisión del propietario
+> (DP-03/DP-04): el celular y el computador trabajan en **la misma red Wi-Fi** y **no hay ningún servicio en la
+> nube**. Si el celular usa datos móviles o está en otra red, no recibirá avisos (no lo resuelva abriendo puertos).
 
 ---
 
 ## Paso 1. Preparar Vivanet Pay en el computador
 
 1. Abra Vivanet Pay y vaya a **Conectores → Android**.
-2. Active el conector Android. Si le pide permiso el **Firewall de Windows**, permita el acceso **solo en redes
-   privadas** (no marque "redes públicas").
-3. Anote la **dirección del receptor** que muestra la pantalla, por ejemplo:
-   `http://192.168.1.20:47390/v1/events`
-   - Si solo ve `127.0.0.1`, el receptor todavía no escucha en la red Wi-Fi. Pida a quien instaló el programa que
-     configure la IP del computador (ver "Configuración técnica" al final).
+2. En la tarjeta **Android**, sección **«Recibir desde mi teléfono en esta Wi‑Fi»**, elija la dirección de su Wi‑Fi
+   (la que empieza por `192.168.`, `10.` o `172.16`–`172.31`) y pulse **Usar esta red**. Vivanet Pay guarda el ajuste,
+   reinicia el receptor y le muestra la dirección exacta para MacroDroid con un botón **Copiar**.
+   - Si le pide permiso el **Firewall de Windows**, permita el acceso **solo en redes privadas** (no marque
+     "redes públicas"). Si no apareció la pregunta y el celular no conecta, ver "Firewall de Windows" más abajo.
+3. Anote (o copie) la **dirección del receptor**, por ejemplo: `http://192.168.1.20:47390/v1/events`
+   - Si no aparece ninguna dirección en la lista, el computador no está conectado a una red Wi‑Fi o cable privada.
+   - Si el router le cambia la IP al computador, vuelva a esta pantalla y pulse **Usar esta red** de nuevo (conviene
+     reservar la IP en el router). Para dejar de recibir del teléfono: **Volver a solo este equipo**.
 4. Pulse **Mostrar secreto** y cópielo. Es una clave larga (unas 43 letras y números).
    - Trátelo como una contraseña: no lo envíe por WhatsApp ni lo publique.
 5. Pulse **Probar recepción**. Debe decir "Prueba recibida correctamente". Esto **no** crea pagos.
@@ -194,29 +199,47 @@ Archivo `config.properties` en la carpeta de datos (`%APPDATA%\VivanetPay`):
 
 ```properties
 connectors.enabled=android
-connector.android.auth=token                       # MacroDroid no calcula HMAC; por defecto es hmac
-connector.android.bindAddress=127.0.0.1,192.168.1.20 # IP LAN FIJA del PC (reserve la IP en el router)
+connector.android.auth=token                       # valor por defecto (MacroDroid no calcula HMAC); hmac es opcional
+connector.android.bindAddress=127.0.0.1,192.168.1.20 # lo escribe la app al pulsar «Usar esta red»
 connector.android.port=47390
 # HTTPS opcional (recomendado fuera de una Wi-Fi de confianza):
 # connector.android.tls.keystore=C:\\Users\\<usuario>\\AppData\\Roaming\\VivanetPay\\receptor.p12
 ```
 
-- Por defecto el receptor escucha **solo en 127.0.0.1** (no accesible desde el celular). La IP LAN debe
-  añadirse explícitamente. `0.0.0.0` está bloqueado salvo `connector.android.allowWildcardBind=true`.
+- Por defecto el receptor escucha **solo en 127.0.0.1** (no accesible desde el celular). La IP LAN se añade con el
+  botón **Usar esta red** de la pantalla Conectores (guarda `connector.android.bindAddress` de forma atómica) o a
+  mano. Solo se aceptan IPv4 **privadas** (10/8, 172.16/12, 192.168/16); se ignoran interfaces virtuales, VPN, Docker,
+  WSL y link-local. `0.0.0.0` está bloqueado salvo `connector.android.allowWildcardBind=true`.
 - Con una IP de red privada **sin** HTTPS el receptor arranca con una **advertencia** visible en *Conectores*.
   Con una IP pública sin HTTPS **no arranca**.
 - HTTPS: genere un certificado con
   `keytool -genkeypair -alias vivanet -keyalg EC -groupname secp256r1 -validity 825 -dname "CN=Vivanet Pay" -ext SAN=ip:192.168.1.20 -storetype PKCS12 -keystore receptor.p12`
   y guarde la contraseña del archivo en el almacén seguro con la clave `android.android-principal.tls_keystore_password`.
   MacroDroid debe confiar en ese certificado (instalarlo en el celular como certificado de usuario).
-- Modo `hmac`: para emisores que puedan firmar (Tasker, HTTP Shortcuts, un puente propio). Ver
-  `tools/macrodroid/README.md` y `tools/macrodroid/probar-receptor.ps1`.
+- Modo `token` (**por defecto**): no hace falta configurar nada para MacroDroid.
+- Modo `hmac` (opcional, `connector.android.auth=hmac`): para emisores que puedan firmar (Tasker, HTTP Shortcuts,
+  un puente propio). Ver `tools/macrodroid/README.md` y `tools/macrodroid/probar-receptor.ps1`.
 
-### Por qué existe el modo `token` (y su costo)
+### Firewall de Windows (puerto del receptor)
+
+Windows puede bloquear el puerto aunque el receptor esté activo. La aplicación **no** cambia el firewall por usted.
+Si el celular no conecta, abra **PowerShell como administrador** y ejecute (puerto 47390 por defecto; cámbielo si
+configuró otro; el perfil `private` evita abrirlo en redes públicas):
+
+```powershell
+netsh advfirewall firewall add rule name="Vivanet Pay (receptor Android)" dir=in action=allow protocol=TCP localport=47390 profile=private
+```
+
+Para quitar la regla: `netsh advfirewall firewall delete rule name="Vivanet Pay (receptor Android)"`.
+La red Wi‑Fi debe estar marcada como **Privada** en Windows (*Configuración → Red e Internet → Wi‑Fi → propiedades*).
+
+### Por qué `token` es el modo por defecto (y su costo)
 
 MacroDroid no puede calcular firmas HMAC, así que envía el secreto en la cabecera `Authorization` en cada aviso.
 Consecuencias: si alguien en la misma red captura un aviso (más fácil sin HTTPS), podría reenviarlo —Vivanet Pay
 no lo cuenta dos veces gracias al `eventId`— o usar el secreto para enviar avisos falsos. Por eso: el secreto es
 aleatorio de 256 bits, se puede rotar/revocar, hay límite de envíos por IP, el receptor solo escucha en la red
-local y los avisos de Android **nunca** se dan por pagos confirmados sin verificación. El modo `hmac` evita que
+local y la confirmación automática (DP-01) exige además parser `nequi-android` con confianza ≥ 0,9 y paquete de
+Nequi. **Riesgo aceptado por el propietario:** quien robe el secreto podría inyectar avisos que se confirmarían
+automáticamente; si sospecha de eso, use **Revocar secreto** y/o desactive la confirmación automática. El modo `hmac` evita que
 el secreto viaje y bloquea reenvíos con nonce y ventana de 5 minutos.

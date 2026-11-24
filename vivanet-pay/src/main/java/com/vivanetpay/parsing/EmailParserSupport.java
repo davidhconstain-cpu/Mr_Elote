@@ -8,7 +8,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /** Verificación de remitente de correo (IDD 8.2: el texto no es evidencia suficiente). */
-final class EmailParserSupport {
+public final class EmailParserSupport {
 
     private EmailParserSupport() {
     }
@@ -26,7 +26,7 @@ final class EmailParserSupport {
      * ({@code "alertas@banco.com" <x@evil.com>}), una parte local entre comillas ({@code "x@banco.com"@evil.com}) o
      * comentarios finales no engañan: ante cualquier forma rara el dominio es nulo y el origen queda SIN verificar.
      */
-    static String senderDomain(RawEvent event) {
+    public static String senderDomain(RawEvent event) {
         String from = event.sender();
         if (from == null || from.isBlank()) {
             from = event.headers().getOrDefault("From", event.headers().get("from"));
@@ -50,7 +50,7 @@ final class EmailParserSupport {
         return domain.endsWith(".") ? domain.substring(0, domain.length() - 1) : domain;
     }
 
-    static boolean domainAllowed(String domain, Set<String> allowed) {
+    public static boolean domainAllowed(String domain, Set<String> allowed) {
         if (domain == null) {
             return false;
         }

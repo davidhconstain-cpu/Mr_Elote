@@ -3,7 +3,8 @@ package com.vivanetpay.integration.android;
 import java.util.Locale;
 
 /**
- * Modo de autenticación del webhook ({@code connector.android.auth}).
+ * Modo de autenticación del webhook ({@code connector.android.auth}). Por defecto {@link #TOKEN}; HMAC sigue
+ * disponible por configuración ({@code connector.android.auth=hmac}).
  * <ul>
  *   <li>{@link #HMAC}: firma HMAC-SHA256 de timestamp + nonce + cuerpo. El secreto nunca viaja; cada solicitud es
  *       única (anti-replay por nonce y ventana de tiempo). Recomendado cuando el emisor puede calcular HMAC
@@ -18,9 +19,12 @@ import java.util.Locale;
 public enum AuthMode {
     HMAC, TOKEN;
 
+    /** Modo por defecto (decisión del propietario): compatible con MacroDroid sin configuración extra. */
+    public static final AuthMode DEFAULT = TOKEN;
+
     public static AuthMode parse(String s) {
         if (s == null || s.isBlank()) {
-            return HMAC;
+            return DEFAULT;
         }
         return switch (s.trim().toLowerCase(Locale.ROOT)) {
             case "hmac" -> HMAC;

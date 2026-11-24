@@ -49,7 +49,7 @@ public final class DashboardScreen implements Screen {
         bindModel();
 
         VBox confirmed = Ui.card("card-ok", Ui.heading("✔ Confirmado hoy"), confirmedTotal, confirmedCount,
-                Ui.muted("Confirmados manualmente tras revisar el canal oficial."));
+                Ui.muted("Confirmados automáticamente por fuente verificada o revisados por ti."));
         VBox unconfirmed = Ui.card("card-warn", Ui.heading("⚠ Por verificar hoy"), unconfirmedTotal, unconfirmedCount,
                 Ui.muted("Posibles pagos: aún NO confirmados."));
         HBox cards = new HBox(14, confirmed, unconfirmed);

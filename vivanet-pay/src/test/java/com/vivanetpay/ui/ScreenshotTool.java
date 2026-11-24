@@ -48,7 +48,8 @@ public class ScreenshotTool extends Application {
         int i = 0;
         for (String t : texts) {
             r.context().ingestionService().ingest(new RawEvent("shot-" + i++, EventSource.ANDROID_NEQUI, "android-principal",
-                    Instant.now(), Instant.now(), "Nequi", "com.nequi.MobileApp", "Nequi\n" + t, Map.of(), 1, null, false));
+                    Instant.now(), Instant.now(), "Nequi", "com.nequi.MobileApp", "Nequi\n" + t,
+                    i <= 2 ? Map.of("webhook.auth", "token") : Map.of(), 1, null, false)); // los 2 primeros: webhook autenticado => confirmados (DP-01)
         }
         UiContext ctx = new UiContext(r);
         ctx.shell = new UiContext.Shell() {

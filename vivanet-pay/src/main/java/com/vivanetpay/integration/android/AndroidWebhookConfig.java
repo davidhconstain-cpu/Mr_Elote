@@ -14,7 +14,7 @@ import java.util.Map;
  * bindAddress=127.0.0.1             lista separada por comas; para recibir del teléfono añadir la IP LAN del PC,
  *                                   p. ej. 127.0.0.1,192.168.1.20. 0.0.0.0/:: solo con allowWildcardBind=true.
  * port=47390                        0 = efímero (pruebas)
- * auth=hmac                         hmac | token (MacroDroid)
+ * auth=token                        token | hmac (por defecto token: compatible con MacroDroid)
  * tls.keystore=                     ruta a PKCS12; contraseña en SecretStore "android.&lt;id&gt;.tls_keystore_password"
  * maxSkewSeconds=300                ventana de vigencia del timestamp (modo hmac)
  * maxBodyBytes=16384                tope real del cuerpo (máx. 65536)

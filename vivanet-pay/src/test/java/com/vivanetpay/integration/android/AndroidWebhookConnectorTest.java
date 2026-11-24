@@ -65,6 +65,7 @@ class AndroidWebhookConnectorTest {
         secretStore = new InMemorySecretStore();
         Map<String, String> settings = new HashMap<>();
         settings.put("port", "0");
+        settings.put("auth", "hmac"); // el valor por defecto es token; estas pruebas ejercitan HMAC salvo que extra lo cambie
         settings.putAll(extra);
         EventSink real = app.ctx.ingestionService();
         EventSink capturing = new EventSink() {

@@ -3,6 +3,7 @@ package com.vivanetpay.ui.view;
 import com.vivanetpay.domain.EventSource;
 import com.vivanetpay.domain.EventStatus;
 import com.vivanetpay.reporting.CsvExporter;
+import com.vivanetpay.reporting.XlsxExporter;
 import com.vivanetpay.reporting.HistoryFilter;
 import com.vivanetpay.reporting.HistoryRow;
 import com.vivanetpay.ui.Background;
@@ -30,7 +31,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Historial (RF-014, RF-019, RF-020): tabla, filtros, detalle y exportación CSV. */
+/** Historial (RF-014, RF-019, RF-020): tabla, filtros, detalle y exportación a Excel (.xlsx) o CSV con punto y coma. */
 public final class HistoryScreen implements Screen {
     private record Choice<T>(String label, T value) {
         @Override
@@ -99,7 +100,8 @@ public final class HistoryScreen implements Screen {
             text.clear();
             refresh();
         });
-        Button export = new Button("Exportar CSV…");
+        Button export = new Button("Exportar a Excel…");
+        export.setTooltip(new javafx.scene.control.Tooltip("Elige Excel (.xlsx) o CSV con punto y coma en la ventana de guardado."));
         export.setOnAction(e -> export());
         FlowPane filters = new FlowPane(8, 8, new Label("Fecha:"), from, to, source, status, min, max, text, search, clear, export);
 
@@ -161,17 +163,30 @@ public final class HistoryScreen implements Screen {
         HistoryFilter base = lastFilter;
         FileChooser fc = new FileChooser();
         fc.setTitle("Exportar historial filtrado");
-        fc.setInitialFileName("historial-" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".csv");
-        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV (Excel)", "*.csv"));
-        File file = fc.showSaveDialog(root.getScene().getWindow());
-        if (file == null) {
+        String stamp = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        fc.setInitialFileName("historial-" + stamp + ".xlsx");
+        FileChooser.ExtensionFilter xlsx = new FileChooser.ExtensionFilter("Excel (*.xlsx)", "*.xlsx");
+        FileChooser.ExtensionFilter csv = new FileChooser.ExtensionFilter("CSV separado por punto y coma (*.csv)", "*.csv");
+        fc.getExtensionFilters().addAll(xlsx, csv);
+        fc.setSelectedExtensionFilter(xlsx);
+        File chosen = fc.showSaveDialog(root.getScene().getWindow());
+        if (chosen == null) {
             return;
         }
+        boolean asCsv = fc.getSelectedExtensionFilter() == csv || chosen.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".csv");
+        String wanted = asCsv ? ".csv" : ".xlsx";
+        File file = chosen.getName().toLowerCase(java.util.Locale.ROOT).endsWith(wanted) ? chosen
+                : new File(chosen.getParentFile(), chosen.getName() + wanted);
+        char sep = ctx.app.config().csvSeparator();
         HistoryFilter all = new HistoryFilter(base.fromDate(), base.toDate(), base.sources(), base.statuses(),
                 base.minAmount(), base.maxAmount(), base.bank(), base.text(), 1_000_000, 0);
         Background.run(() -> {
             List<HistoryRow> rows = ctx.app.historyService().search(all);
-            CsvExporter.write(rows, file.toPath());
+            if (asCsv) {
+                CsvExporter.write(rows, file.toPath(), sep);
+            } else {
+                XlsxExporter.write(rows, file.toPath());
+            }
             return rows.size();
         }, n -> Ui.info("Exportación lista", n + " fila(s) guardadas en\n" + file.getAbsolutePath()),
                 e -> Ui.error("No se pudo exportar", Ui.describe(e)));

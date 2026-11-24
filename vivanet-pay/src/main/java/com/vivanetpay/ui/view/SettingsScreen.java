@@ -22,6 +22,7 @@ public final class SettingsScreen implements Screen {
     private final VBox root = new VBox(12);
     private final CheckBox startup = new CheckBox("Iniciar Vivanet Pay al iniciar sesión en Windows");
     private final CheckBox tray = new CheckBox("Al cerrar la ventana, seguir funcionando en la bandeja del sistema");
+    private final CheckBox autoConfirm = new CheckBox("Confirmar automáticamente pagos de fuentes verificadas");
     private final ComboBox<Theme.Mode> theme = new ComboBox<>();
     private final Label startupNote = Ui.muted("");
     private boolean loading;
@@ -38,6 +39,20 @@ public final class SettingsScreen implements Screen {
                 boolean v = tray.isSelected();
                 Background.run(() -> ctx.prefs.put(UiPreferences.MINIMIZE_TO_TRAY, v),
                         ctx.shell::onPreferencesChanged, err -> Ui.error("No se pudo guardar", Ui.describe(err)));
+            }
+        });
+        autoConfirm.setOnAction(e -> {
+            if (!loading) {
+                boolean v = autoConfirm.isSelected();
+                Background.run(() -> {
+                    ctx.app.setAutomaticValidation(v, ctx.actor());
+                    return Boolean.TRUE;
+                }, ok -> { }, err -> {
+                    loading = true;
+                    autoConfirm.setSelected(!v);
+                    loading = false;
+                    Ui.error("No se pudo guardar", Ui.describe(err));
+                });
             }
         });
         theme.getItems().setAll(Theme.Mode.values());
@@ -65,6 +80,10 @@ public final class SettingsScreen implements Screen {
         Label themeLabel = new Label("Tema:");
         themeLabel.setLabelFor(theme);
         root.getChildren().addAll(Ui.title("Configuración"), startup, startupNote, tray,
+                Ui.heading("Confirmación de pagos"), autoConfirm,
+                Ui.muted("Si está activado, un aviso de Nequi (Android) o un correo verificado de Nequi/Bancolombia se marca "
+                        + "como confirmado y se anuncia por voz sin que tengas que revisarlo. Una notificación no es un "
+                        + "comprobante bancario; revisa tu app ante dudas. Desactívalo para confirmar cada pago a mano."),
                 new HBox(8, themeLabel, theme),
                 Ui.muted("Automático sigue el modo claro/oscuro de Windows (se lee al abrir la aplicación)."),
                 Ui.heading("Zona horaria"), Ui.text(AppTime.BOGOTA.getId() + " (UTC-5, sin horario de verano) — solo lectura"),
@@ -95,6 +114,7 @@ public final class SettingsScreen implements Screen {
                     theme.setValue(Theme.mode());
                     tray.setSelected(v[0]);
                     startup.setSelected(v[1]);
+                    autoConfirm.setSelected(ctx.app.automaticValidationEnabled());
                     startup.setDisable(!ctx.startup.supported());
                     startupNote.setText(ctx.startup.supported() ? "" : "Disponible solo en Windows.");
                     loading = false;

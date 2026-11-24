@@ -19,7 +19,7 @@ class CsvExporterTest {
         List<HistoryRow> rows = List.of(UiTestData.row(1, "Bancolombia", 125000L, "José Peña", EventStatus.VALIDADO_POR_FUENTE));
         String csv = CsvExporter.toString(rows);
         assertThat(csv.charAt(0)).isEqualTo('\uFEFF');
-        assertThat(csv).contains("José Peña").contains(",125000,").contains("01/03/2025 10:30:00");
+        assertThat(csv).contains("José Peña").contains(";125000;").contains("01/03/2025 10:30:00");
         assertThat(csv).contains("Fecha y hora (America/Bogota)");
     }
 
@@ -46,7 +46,7 @@ class CsvExporterTest {
         assertThat(CsvExporter.escape("normal")).isEqualTo("normal");
         List<HistoryRow> rows = List.of(UiTestData.row(1, "=HYPERLINK(\"http://x\")", 5L, "@evil", EventStatus.PARSEADO));
         String csv = CsvExporter.toString(rows);
-        assertThat(csv).contains("\"'=HYPERLINK(\"\"http://x\"\")\"").contains(",\"'@evil\",");
+        assertThat(csv).contains("\"'=HYPERLINK(\"\"http://x\"\")\"").contains(";\"'@evil\";");
     }
 
     @Test
@@ -67,5 +67,32 @@ class CsvExporterTest {
         assertThat(CsvExporter.escape("l1\nl2")).isEqualTo("\"l1\nl2\"");
         assertThat(CsvExporter.escape("di\"jo")).isEqualTo("\"di\"\"jo\"");
         assertThat(CsvExporter.escape(null)).isEmpty();
+    }
+
+    @Test
+    void separadorPorDefectoEsPuntoYComaYEsConfigurable() {
+        List<HistoryRow> rows = List.of(UiTestData.row(1, "Nequi", 1250000L, "Ana; Pérez", EventStatus.PARSEADO));
+        String csv = CsvExporter.toString(rows);
+        assertThat(csv.split("\r\n")[0]).contains("ID evento;Fecha y hora").doesNotContain(",");
+        assertThat(csv).contains(";1250000;").doesNotContain("1.250.000").doesNotContain("1,250,000");
+        assertThat(csv).contains("\"Ana; Pérez\"").endsWith("\r\n");
+        java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
+        try {
+            CsvExporter.write(rows, b, ',');
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
+        String comma = b.toString(StandardCharsets.UTF_8);
+        assertThat(comma).contains("ID evento,Fecha y hora").contains(",1250000,").contains("Ana; Pérez");
+        assertThat(CsvExporter.parseSeparator(null)).isEqualTo(';');
+        assertThat(CsvExporter.parseSeparator(",")).isEqualTo(',');
+        assertThat(CsvExporter.parseSeparator("tab")).isEqualTo('\t');
+        assertThat(CsvExporter.parseSeparator("xx")).isEqualTo(';');
+    }
+
+    @Test
+    void formulasSeNeutralizanTambienConPuntoYComa() {
+        assertThat(CsvExporter.escape("=1+1;2", ';')).isEqualTo("\"'=1+1;2\"");
+        assertThat(CsvExporter.escape("a;b", ';')).isEqualTo("\"a;b\"");
     }
 }

@@ -15,8 +15,8 @@ Guía paso a paso: [`docs/MACRODROID.md`](../../docs/MACRODROID.md).
 
 Autenticación según `connector.android.auth`:
 
-- `token`: `Authorization: Bearer <secreto>` (MacroDroid).
-- `hmac` (por defecto): `X-Vivanet-Timestamp` (epoch s, ±300 s), `X-Vivanet-Nonce` (16–128 `[A-Za-z0-9_-]`, un solo uso),
+- `token` (por defecto): `Authorization: Bearer <secreto>` (MacroDroid).
+- `hmac` (opcional, `connector.android.auth=hmac`): `X-Vivanet-Timestamp` (epoch s, ±300 s), `X-Vivanet-Nonce` (16–128 `[A-Za-z0-9_-]`, un solo uso),
   `X-Vivanet-Signature: v1=<hex HMAC-SHA256(secreto, "v1\n"+timestamp+"\n"+nonce+"\n"+cuerpo)>`.
 
 Campos: `schemaVersion`=1 (obl.), `eventId` 1–128 (obl., único y estable: los reintentos deben repetir el mismo),

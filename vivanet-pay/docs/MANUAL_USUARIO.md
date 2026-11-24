@@ -54,7 +54,7 @@ La columna izquierda tiene el menú con las pantallas. Están en este orden: **T
 
 Es la pantalla de inicio. Muestra el día de hoy según la hora de Colombia:
 
-- **Confirmado hoy**: total y cantidad de pagos ya confirmados.
+- **Confirmado hoy**: total y cantidad de pagos confirmados automáticamente por una fuente verificada o revisados por usted.
 - **Por verificar hoy**: total y cantidad de posibles pagos que aún no están confirmados.
 - **Pendientes**: cuántos avisos esperan su revisión. Con el botón **Ir a Pendientes** pasa directamente a esa pantalla.
 - **Último evento**: el aviso más reciente.
@@ -76,7 +76,7 @@ Es la lista completa de movimientos. Puede filtrar por:
 
 Pulse **Buscar** para aplicar los filtros y **Limpiar filtros** para quitarlos. Al seleccionar una fila, el panel de detalle muestra el estado, el motivo, el monto, la entidad, el remitente, la referencia, la fuente y las fechas del pago y de recepción.
 
-Para llevarse la lista a una hoja de cálculo, pulse **Exportar CSV…** y elija dónde guardar el archivo. El CSV se abre con Excel y conserva las tildes.
+Para llevarse la lista a una hoja de cálculo, pulse **Exportar a Excel…** y elija el formato en la ventana de guardado: **Excel (.xlsx)** (encabezado en negrita, montos como número con formato `#,##0`) o **CSV separado por punto y coma**. Ambos conservan las tildes y los montos son números enteros que Excel puede sumar. Los textos que empiezan por `=`, `+`, `-` o `@` se guardan como texto, nunca como fórmula.
 
 ### 4.3 Pendientes
 
@@ -141,7 +141,7 @@ Vivanet Pay separa dos cosas que pueden parecerse:
 
 | Lo que ve en pantalla | Qué significa | Cómo se ve |
 |---|---|---|
-| **Confirmado** | Un pago que alguien revisó y validó en la pantalla Pendientes, o que una fuente de confianza que el proveedor configuró ya validó. | Aparece en el Tablero como *Confirmado hoy*. |
+| **Confirmado** | Un pago que **Vivanet Pay confirmó automáticamente** porque viene de una fuente verificada (aviso de Nequi por el canal autenticado del celular, o un correo de Nequi/Bancolombia con DKIM y SPF/DMARC válidos), o que usted revisó y validó en Pendientes. | Aparece en el Tablero como *Confirmado hoy*. La voz dice *"Pago recibido por … pesos desde …"*. |
 | **Por verificar** | Un posible pago. Vivanet Pay recibió el aviso, pero no tiene evidencia suficiente para afirmar que el dinero llegó. | Aparece en el Tablero como *Por verificar hoy*, con el estado *Por verificar* o *Pendiente de revisión*. |
 
 Otros estados que puede ver en el Historial:
@@ -156,7 +156,9 @@ Otros estados que puede ver en el Historial:
 - Una notificación puede ser una prueba, un reenvío, una notificación de otra cuenta o una transacción que después se revierte.
 - El dinero se da por recibido cuando lo confirma su banco o Nequi, no cuando llega el aviso.
 
-Por eso, la voz dice *"Nueva notificación de [entidad] por [monto] pesos. Verifica el pago."* y **no** dice *"Pago recibido"*. La frase *"Pago recibido"* solo se usa para pagos ya confirmados.
+Por eso, cuando el aviso **no** cumple las reglas de una fuente verificada (formato dudoso, confianza baja, posible duplicado, correo sin autenticación válida), la voz dice *"Nueva notificación de [entidad] por [monto] pesos. Verifica el pago."* y **no** dice *"Pago recibido"*. La frase *"Pago recibido"* solo se usa para pagos confirmados.
+
+**Riesgo que usted aceptó:** la confirmación automática se basa en una notificación o un correo, que **no es un comprobante bancario**; revise su app de Nequi o banco ante cualquier duda. Si prefiere confirmar cada pago a mano, desactive *Configuración → Confirmar automáticamente pagos de fuentes verificadas*. Los avisos históricos (sincronización inicial de Gmail) pueden quedar confirmados pero nunca se anuncian por voz.
 
 ---
 
@@ -279,7 +281,7 @@ Para revocar el acceso de Gmail también puede entrar a <https://myaccount.googl
 ## 11. Preguntas frecuentes
 
 **¿Puedo exportar los movimientos a Excel?**
-Por ahora se exportan a **CSV** desde el Historial, y el archivo se abre con Excel. No hay exportación a PDF.
+Sí. En el Historial, **Exportar a Excel…** guarda un archivo `.xlsx` o un CSV separado por punto y coma. No hay exportación a PDF.
 
 **¿Hasta cuándo se guardan los movimientos?**
 Los movimientos no se borran desde la aplicación. Los registros (logs) se conservan 30 días. Los respaldos se conservan hasta que los borre manualmente. La política final de conservación está pendiente de decisión.

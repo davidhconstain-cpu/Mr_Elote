@@ -47,7 +47,7 @@ public final class PendingScreen implements Screen {
         keep.setOnAction(e -> doKeep());
         select(null);
         root.getChildren().addAll(Ui.title("Pendientes de revisión"),
-                Ui.muted("Estos pagos NO están confirmados. Compáralos con tu app o extracto bancario antes de validarlos."),
+                Ui.muted("Estos pagos NO están confirmados: no cumplieron las reglas de confirmación automática o necesitan tu revisión. Compáralos con tu app o extracto bancario antes de validarlos."),
                 table, Ui.heading("Detalle"), detail, new HBox(10, validate, discardDup, discard, keep));
         root.setPadding(new Insets(18));
     }

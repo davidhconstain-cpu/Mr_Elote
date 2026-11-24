@@ -2,7 +2,7 @@
 
 Aplicación de escritorio para Windows (Java 21 + JavaFX) que detecta transferencias entrantes, las registra y las anuncia por voz. Recibe avisos de Nequi desde un celular Android (MacroDroid) y de correos de Gmail.
 
-Una notificación o un correo **no es prueba de que el dinero llegó**. La app distingue "Confirmado" de "Por verificar" y no confirma ningún pago por su cuenta (ver `docs/DECISIONES_PENDIENTES.md`, DP-01).
+Una notificación o un correo **no es un comprobante bancario**. La app distingue "Confirmado" de "Por verificar". Por decisión del propietario (DP-01) confirma automáticamente solo los avisos de fuentes verificadas que cumplen reglas estrictas (Nequi por el webhook autenticado; correos de Nequi/Bancolombia con DKIM y SPF/DMARC válidos); todo lo demás queda por verificar. Se puede volver al modo manual con `policy.automaticValidation=false` o desde Configuración. Ver `docs/DECISIONES_PENDIENTES.md`.
 
 ## Estado
 
@@ -40,7 +40,7 @@ Empaquetado para Windows (`jpackage`, `.exe`/`.msi`): ver [`docs/EMPAQUETADO.md`
 | `integration.gmail` | Conector Gmail: OAuth de solo lectura, sincronización incremental, revocación. |
 | `integration.android` | Receptor HTTP(S) para MacroDroid: autenticación HMAC o token, nonce, límite de tasa, rotación de secreto. |
 | `voice` | Cola de anuncios (`AnnouncementQueue`), mensajes en español, motor de voz de Windows (`WindowsSpeechEngine`). |
-| `reporting` | Resúmenes del tablero, filtros del historial y exportación CSV. |
+| `reporting` | Resúmenes del tablero, filtros del historial y exportación CSV (`;`) y Excel (.xlsx). |
 | `security` | Almacén de secretos en `<datos>/secrets`: cifrado con DPAPI en Windows (`WindowsSecretStore`); en otros sistemas, archivos con permisos 600 **sin cifrar** (`FileSecretStore`, solo desarrollo). |
 | `licensing` | Prueba local de 14 días (`LicenseService`). |
 | `observability` | Redacción de tokens, claves y correos en logs y diagnóstico. |
@@ -74,8 +74,9 @@ Archivo en el directorio de datos. Las claves no secretas se leen en `app/AppCon
 | Clave | Por defecto | Descripción |
 |---|---|---|
 | `connectors.enabled` | `gmail,android` | Conectores a arrancar: `gmail`, `android` o ambos separados por coma; `none` no arranca ninguno. |
-| `policy.automaticValidation` | `false` | Permite confirmar automáticamente según la política (DP-01). |
-| `policy.trustedSources` | (vacío) | Fuentes de confianza para la validación automática (p. ej. `ANDROID_NEQUI`). |
+| `policy.automaticValidation` | `true` | Confirma automáticamente los pagos de fuentes verificadas bajo reglas estrictas (DP-01 decidida). `false` = modo conservador: solo la validación manual confirma. |
+| `policy.trustedSources` | `ANDROID_NEQUI,GMAIL` | Fuentes que pueden confirmarse automáticamente (si además cumplen sus reglas). Vacío = ninguna. |
+| `export.csv.separator` | `;` | Separador del CSV exportado (`;`, `,`, `\|` o `tab`). El Excel (.xlsx) no lo usa (DP-08). |
 | `policy.minConfidence` | `0.9` | Confianza mínima del parser; por debajo, el evento va a revisión. |
 | `policy.announceUnconfirmed` | `true` | Anuncia los posibles pagos como "Verifica el pago". |
 | `policy.announceOnManualValidation` | `false` | Anuncia por voz al validar manualmente. |
@@ -95,9 +96,9 @@ Archivo en el directorio de datos. Las claves no secretas se leen en `app/AppCon
 | `connector.gmail.pollSeconds` | `60` | Intervalo de sondeo (mínimo 5). |
 | `connector.gmail.initialMax` | `50` | Máximo de correos en la sincronización inicial. |
 | `connector.gmail.backoffBaseSeconds` / `backoffMaxSeconds` | `5` / `900` | Backoff exponencial ante fallos. |
-| `connector.android.bindAddress` | `127.0.0.1` | Direcciones de escucha, separadas por coma. Para el celular, añadir la IP LAN del PC (DP-03). |
+| `connector.android.bindAddress` | `127.0.0.1` | Direcciones de escucha, separadas por coma. La pantalla Conectores añade la IP Wi‑Fi del PC con «Usar esta red» (DP-03/DP-04: misma red, sin nube). |
 | `connector.android.port` | `47390` | Puerto del receptor (0 = efímero, solo pruebas). |
-| `connector.android.auth` | `hmac` | `hmac` o `token`. MacroDroid necesita `token` (ver `DECISIONES_PENDIENTES.md`). |
+| `connector.android.auth` | `token` | `token` (por defecto, compatible con MacroDroid) o `hmac` (emisores que firmen). |
 | `connector.android.tls.keystore` | (vacío) | Ruta a un PKCS12 para HTTPS. Contraseña en el `SecretStore`. |
 | `connector.android.maxSkewSeconds` | `300` | Vigencia del timestamp en modo `hmac`. |
 | `connector.android.maxBodyBytes` | `16384` | Tamaño máximo del cuerpo (tope duro 65536). |

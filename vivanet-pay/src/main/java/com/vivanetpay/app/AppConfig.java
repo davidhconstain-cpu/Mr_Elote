@@ -31,8 +31,8 @@ import java.util.Set;
  * <pre>
  * connectors.enabled=gmail,android        (lista; "none" = ninguno)
  * connector.&lt;tipo&gt;.&lt;clave&gt;=...             (ajustes no secretos del conector)
- * policy.automaticValidation=false         (DP-01)
- * policy.trustedSources=                   (DP-01; p. ej. ANDROID_NEQUI)
+ * policy.automaticValidation=true          (DP-01 decidida; false = modo conservador)
+ * policy.trustedSources=ANDROID_NEQUI,GMAIL (DP-01; vacío explícito = ninguna fuente)
  * policy.minConfidence=0.9
  * policy.announceUnconfirmed=true          (anunciar "posible pago")
  * policy.announceOnManualValidation=false
@@ -41,6 +41,7 @@ import java.util.Set;
  * voice.includeSender=false                (DP-09)
  * voice.maxAgeMinutes=15                   (no anunciar históricos)
  * voice.connectorAlerts=true
+ * export.csv.separator=;                 (DP-08; ; , | tab)
  * backup.onStart=true                      (frecuencia/retención DP-05/DP-10)
  * license.enforce=false                    (DP-07)
  * </pre>
@@ -128,6 +129,99 @@ public final class AppConfig {
         }
     }
 
+    /**
+     * Fija valores en memoria y los persiste en {@code config.properties} de forma atómica: conserva comentarios y
+     * claves ajenas, escribe un archivo temporal en el mismo directorio, lo sincroniza a disco y lo mueve sobre el
+     * original (ATOMIC_MOVE). Un valor {@code null} elimina la clave. Nunca guardar secretos aquí.
+     */
+    public synchronized void update(Map<String, String> changes) {
+        Path file = dataDir.resolve(CONFIG_FILE);
+        try {
+            Files.createDirectories(dataDir);
+            List<String> lines = Files.isRegularFile(file) ? Files.readAllLines(file, StandardCharsets.UTF_8) : List.of();
+            List<String> out = new ArrayList<>();
+            Set<String> written = new java.util.HashSet<>();
+            for (String line : lines) {
+                String key = propertyKey(line);
+                if (key != null && changes.containsKey(key)) {
+                    String v = changes.get(key);
+                    if (v != null && written.add(key)) {
+                        out.add(escapeKey(key) + "=" + escapeValue(v));
+                    }
+                    continue; // línea reemplazada o eliminada (también duplicados)
+                }
+                out.add(line);
+            }
+            for (Map.Entry<String, String> e : changes.entrySet()) {
+                if (e.getValue() != null && !written.contains(e.getKey())) {
+                    out.add(escapeKey(e.getKey()) + "=" + escapeValue(e.getValue()));
+                }
+            }
+            Path tmp = Files.createTempFile(dataDir, "config", ".tmp");
+            try {
+                Files.write(tmp, out, StandardCharsets.UTF_8);
+                try (java.nio.channels.FileChannel ch = java.nio.channels.FileChannel.open(tmp,
+                        java.nio.file.StandardOpenOption.WRITE)) {
+                    ch.force(true);
+                }
+                try {
+                    Files.move(tmp, file, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                    Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } finally {
+                Files.deleteIfExists(tmp);
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("No se pudo guardar " + file, e);
+        }
+        for (Map.Entry<String, String> e : changes.entrySet()) { // solo tras persistir con éxito
+            if (e.getValue() == null) {
+                props.remove(e.getKey());
+            } else {
+                props.setProperty(e.getKey(), e.getValue());
+            }
+        }
+    }
+
+    public void set(String key, String value) {
+        java.util.HashMap<String, String> m = new java.util.HashMap<>();
+        m.put(key, value);
+        update(m);
+    }
+
+    private static String propertyKey(String line) {
+        String t = line.stripLeading();
+        if (t.isEmpty() || t.charAt(0) == '#' || t.charAt(0) == '!') {
+            return null;
+        }
+        int i = 0;
+        StringBuilder k = new StringBuilder();
+        while (i < t.length()) {
+            char ch = t.charAt(i);
+            if (ch == '\\' && i + 1 < t.length()) {
+                k.append(t.charAt(i + 1));
+                i += 2;
+                continue;
+            }
+            if (ch == '=' || ch == ':' || Character.isWhitespace(ch)) {
+                break;
+            }
+            k.append(ch);
+            i++;
+        }
+        return k.toString();
+    }
+
+    private static String escapeKey(String s) {
+        return s.replace("\\", "\\\\").replace(" ", "\\ ").replace("=", "\\=").replace(":", "\\:");
+    }
+
+    private static String escapeValue(String s) {
+        return s.replace("\\", "\\\\").replace("\n", "\\n").replace("\r", "\\r");
+    }
+
     public String get(String key, String def) {
         String v = props.getProperty(key);
         return v == null || v.isBlank() ? def : v.trim();
@@ -148,11 +242,16 @@ public final class AppConfig {
         return v == null || v.isBlank() ? def : Double.parseDouble(v.trim());
     }
 
-    /** Política de validación. Defaults conservadores (DP-01 pendiente). */
+    /** Política de validación. Defaults de la decisión DP-01 (confirmación automática de fuentes verificadas). */
     public ValidationPolicyConfig policyConfig() {
-        ValidationPolicyConfig d = ValidationPolicyConfig.conservativeDefaults();
+        ValidationPolicyConfig d = ValidationPolicyConfig.defaults();
         Set<EventSource> trusted = EnumSet.noneOf(EventSource.class);
-        for (String s : get("policy.trustedSources", "").split(",")) {
+        String trustedRaw = props.getProperty("policy.trustedSources");
+        if (trustedRaw == null) {
+            trusted.addAll(d.trustedSources());
+            trustedRaw = "";
+        }
+        for (String s : trustedRaw.split(",")) {
             if (!s.isBlank()) {
                 trusted.add(EventSource.valueOf(s.trim().toUpperCase(Locale.ROOT)));
             }
@@ -182,6 +281,11 @@ public final class AppConfig {
 
     public Duration similarityWindow() {
         return Duration.ofMinutes(getInt("idempotency.similarityWindowMinutes", 10));
+    }
+
+    /** Separador del CSV exportado ({@code export.csv.separator}; por defecto {@code ;}, DP-08). */
+    public char csvSeparator() {
+        return com.vivanetpay.reporting.CsvExporter.parseSeparator(get("export.csv.separator", ";"));
     }
 
     public boolean backupOnStart() {

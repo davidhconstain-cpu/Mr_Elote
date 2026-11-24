@@ -30,6 +30,7 @@ public record AuditEntry(Long id, String entityType, String entityId, String act
     public static final String ACTION_STATUS_CHANGE = "STATUS_CHANGE";
     public static final String ACTION_REVIEW_KEEP = "REVIEW_KEEP";
     public static final String ACTION_DUPLICATE_OVERRIDE = "DUPLICATE_OVERRIDE";
+    public static final String ACTION_SETTING_CHANGE = "SETTING_CHANGE";
 
     public AuditEntry {
         Objects.requireNonNull(entityType, "entityType");

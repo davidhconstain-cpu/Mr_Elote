@@ -6,3 +6,4 @@ target-*/
 
 # Credenciales OAuth de Google (nunca al repositorio)
 client_secret*.json
+__pycache__/

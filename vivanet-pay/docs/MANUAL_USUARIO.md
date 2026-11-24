@@ -93,7 +93,7 @@ Los botones se explican en la sección 6.
 
 Muestra una tarjeta por cada fuente activa, con su estado y lo que debe hacer usted:
 
-- **Gmail**: botones **Autorizar** (o **Volver a autorizar**), **Pausar** o **Reanudar**, y **Revocar acceso**. Para los pasos completos, vea [`GMAIL_OAUTH.md`](GMAIL_OAUTH.md).
+- **Gmail**: botones **Autorizar Gmail** (o **Volver a autorizar**), **Pausar** o **Reanudar**, **Revocar acceso** y **Cargar archivo de credenciales…** (**Reemplazar credenciales…** si ya hay uno). Si su instalador ya trae las credenciales de Google, solo pulse **Autorizar Gmail** e inicie sesión en el navegador. Si la aplicación dice que falta el archivo de credenciales, pulse **Cargar archivo de credenciales…**, elija el archivo `client_secret….json` que le entregó el proveedor (o que descargó de Google Cloud) y luego pulse **Autorizar Gmail**. Pasos completos en [`GMAIL_OAUTH.md`](GMAIL_OAUTH.md).
 - **Android (Nequi)**: botones **Probar recepción**, **Mostrar secreto**, **Rotar secreto**, **Revocar secreto**, **Pausar** o **Reanudar**. Para configurar el celular, vea [`MACRODROID.md`](MACRODROID.md).
 
 Los posibles estados de un conector son:
@@ -250,7 +250,7 @@ Vivanet Pay lo detecta como **Duplicado** cuando llega con el mismo identificado
 Revise que el celular y el computador estén en la **misma red Wi-Fi**, que el computador esté encendido y que MacroDroid no esté cerrado por el ahorro de batería. El proveedor puede ayudarle con la configuración. Detalles en [`MACRODROID.md`](MACRODROID.md).
 
 **Gmail dice "Requiere autorización".**
-Pulse **Autorizar** en **Conectores** y vuelva a iniciar sesión en Google. Vea [`GMAIL_OAUTH.md`](GMAIL_OAUTH.md).
+Pulse **Autorizar Gmail** en **Conectores** y vuelva a iniciar sesión en Google. Si primero pide el archivo de credenciales, use **Cargar archivo de credenciales…**. Si la app de Google está en modo *Prueba*, la autorización caduca cada 7 días. Vea [`GMAIL_OAUTH.md`](GMAIL_OAUTH.md).
 
 **Gmail o Android aparece como "Desconectado".**
 Es temporal. Revise Internet o el celular; la aplicación reintenta sola. Si lleva mucho tiempo desconectado, use **Probar recepción** (Android) o revise **Diagnóstico**.

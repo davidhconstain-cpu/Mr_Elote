@@ -1,33 +1,90 @@
-# Conector Gmail: configuración de OAuth
+# Conector Gmail: credenciales de Google y autorización
 
 Vivanet Pay lee correos bancarios con la API de Gmail usando OAuth 2.0 de "aplicación instalada" (PKCE + redirección
 a `127.0.0.1` en un puerto aleatorio). Pide un único permiso: `https://www.googleapis.com/auth/gmail.readonly`
 (solo lectura; la app no puede enviar, borrar ni modificar correos).
 
-El `client_id`/`client_secret` **no están en el repositorio**: cada instalación (o el proveedor del producto)
-los obtiene en Google Cloud y los coloca en un archivo externo.
+Para hablar con Google la app necesita un **archivo de credenciales** (`client_secret.json`, cliente OAuth tipo
+"App de escritorio"). Es del **producto**, no de cada usuario: el proveedor lo crea una sola vez y lo distribuye con el
+instalador. Para apps instaladas Google no considera confidencial ese `client_secret`; la seguridad la dan PKCE y la
+redirección loopback. Aun así **no se sube al repositorio** (`.gitignore`).
 
-## 1. Crear el proyecto en Google Cloud
+La app busca las credenciales en este orden:
+
+1. Archivo del usuario: `connector.gmail.clientSecretsPath` (por defecto `<carpeta de datos>/gmail/client_secret.json`;
+   en Windows `C:\Users\<usuario>\AppData\Roaming\VivanetPay\gmail\client_secret.json`). Si existe, gana.
+2. Recurso empaquetado en el instalador: `/vivanetpay/gmail/client_secret.json` (lo coloca el CI, ver A.4).
+3. Ninguno: la app muestra un aviso con la ruta exacta y el botón **Cargar archivo de credenciales…**.
+
+En ambos casos se valida que el JSON sea de tipo `installed` (App de escritorio); uno de tipo "web" se rechaza.
+
+---
+
+## A. Propietario / proveedor (una sola vez)
+
+### A.1 Proyecto y API
 
 1. Entra a <https://console.cloud.google.com/> y crea un proyecto (p. ej. "Vivanet Pay").
-2. **APIs y servicios > Biblioteca**: busca "Gmail API" y pulsa **Habilitar**.
-3. **APIs y servicios > Pantalla de consentimiento de OAuth**:
-   - Tipo de usuario: **Externo** (o Interno si usas Google Workspace y solo tu organización).
-   - Nombre de la app, correo de soporte y de contacto del desarrollador.
-   - **Permisos (scopes)**: agrega únicamente `.../auth/gmail.readonly`.
-   - **Usuarios de prueba**: mientras la app esté en modo "Prueba", agrega las cuentas Gmail que podrán autorizar
-     (máximo 100). En modo prueba los tokens de actualización caducan a los 7 días (la app mostrará
-     "Requiere autorización" y habrá que volver a autorizar).
-4. **APIs y servicios > Credenciales > Crear credenciales > ID de cliente de OAuth**:
-   - Tipo de aplicación: **App de escritorio**.
-   - Descarga el JSON (`client_secret_XXXX.json`).
+2. Menú **APIs y servicios > Biblioteca**: busca "Gmail API" y pulsa **Habilitar**.
 
-## 2. Dónde poner el archivo de credenciales
+### A.2 Pantalla de consentimiento
 
-Por defecto: `<directorio de datos>/gmail/client_secret.json`
-(el directorio de datos es el de la aplicación, fuera de la carpeta de instalación).
+1. **APIs y servicios > Pantalla de consentimiento de OAuth** (en consolas nuevas: **Google Auth Platform**, con las
+   secciones **Branding**, **Público** y **Acceso a los datos**).
+2. Tipo de usuario / Público: **Externo**. Estado de publicación: **Prueba**.
+3. Nombre de la app, correo de asistencia y correo de contacto del desarrollador.
+4. **Acceso a los datos (Permisos)**: agrega únicamente `.../auth/gmail.readonly`.
+5. **Usuarios de prueba**: agrega **tu propio correo** (y el de cada cuenta que vaya a autorizar; máx. 100).
+   Mientras la app esté en **Prueba**, solo los usuarios de prueba pueden autorizar y **el token caduca a los 7 días**
+   (la app mostrará "Requiere autorización" y habrá que pulsar **Autorizar Gmail** de nuevo).
 
-Para usar otra ruta, en `config.properties`:
+### A.3 Credencial
+
+1. **APIs y servicios > Credenciales > Crear credenciales > ID de cliente de OAuth**.
+2. Tipo de aplicación: **App de escritorio**. Nombre: "Vivanet Pay".
+3. Pulsa **Descargar JSON** (`client_secret_XXXX.json`).
+
+### A.4 Incluirlo en el instalador (GitHub)
+
+1. En el repositorio: **Settings > Secrets and variables > Actions > New repository secret**.
+2. Nombre: `GMAIL_CLIENT_SECRET_JSON`. Valor: el contenido completo del JSON descargado.
+3. El job "Instalador de Windows" lo escribe en `vivanet-pay/src/main/resources/vivanetpay/gmail/client_secret.json`
+   antes de compilar, de modo que queda dentro del `.msi` y de la versión portable. Si el secreto no existe, el CI avisa
+   con `::notice::` y el instalador se genera **sin** credenciales (el usuario deberá cargar su archivo). El job de
+   pruebas no necesita el secreto. Para compilar localmente con credenciales, copia el JSON a esa ruta (git la ignora).
+
+### A.5 Vender o instalar a terceros
+
+`gmail.readonly` es un **scope restringido**:
+
+- En modo **Prueba** solo funcionan los usuarios de prueba y los tokens caducan a los 7 días: sirve para ti, no para clientes.
+- Para clientes reales hay que pasar a **En producción** y completar la **verificación de OAuth** de Google: política de
+  privacidad pública, dominio verificado, justificación del scope, video de demostración y descripción del uso de los datos.
+- Los scopes restringidos exigen además una **evaluación de seguridad anual (CASA)** por un evaluador autorizado, con costo
+  y tiempo de revisión; planéala antes del lanzamiento comercial. Sin verificación los usuarios verán "Google no ha verificado esta app".
+- Alternativa: que cada cliente cree su propio proyecto (Prueba con su cuenta, o "Interno" en Workspace) y cargue su archivo
+  con **Cargar archivo de credenciales…**; evita la verificación central pero complica la instalación.
+- Se debe cumplir la política de "Limited Use" de Google: los datos de Gmail solo se usan para detectar pagos entrantes,
+  no se transfieren ni se usan para publicidad.
+
+---
+
+## B. Usuario final
+
+- **Si el instalador ya trae las credenciales** (lo normal): en **Conectores**, tarjeta de Gmail, pulsa **Autorizar Gmail**,
+  inicia sesión en Google y concede el permiso de solo lectura.
+- **Si la app dice que falta el archivo de credenciales**: pulsa **Cargar archivo de credenciales…**, elige el archivo
+  `client_secret….json` que te dio el proveedor (o que descargaste de Google Cloud, tipo "App de escritorio") y, al ver
+  "Credenciales cargadas", pulsa **Autorizar Gmail**. La app valida el archivo y lo copia a su carpeta de datos
+  (también puedes copiarlo a mano a la ruta indicada en el aviso). **Reemplazar credenciales…** sirve para cambiarlo después.
+- "Ese archivo es de tipo Aplicación web": el cliente debe crearse como **App de escritorio**.
+- Si Google dice "app no verificada" o "acceso bloqueado": tu correo debe estar como usuario de prueba (A.2) o la app verificada (A.5).
+
+---
+
+## Ajustes opcionales
+
+En `config.properties` (prefijo `connector.gmail.`; también se acepta `gmail.`):
 
 ```properties
 connectors.enabled=gmail,android
@@ -45,9 +102,8 @@ Otros ajustes (todos opcionales, prefijo `connector.gmail.`; también se acepta 
 | `initialMax` | `50` | Máximo de correos en la sincronización inicial. |
 | `backoffBaseSeconds` / `backoffMaxSeconds` | `5` / `900` | Backoff exponencial con jitter ante fallos. |
 
-No subas `client_secret*.json` al repositorio (ya está en `.gitignore`).
 
-## 3. Cómo funciona la autorización
+## Cómo funciona la autorización
 
 1. En la pantalla de Conectores, pulsar **Autorizar Gmail**: se abre el navegador con la pantalla de consentimiento de Google.
 2. Google redirige a `http://127.0.0.1:<puerto aleatorio>/` (servidor local temporal) con un código; la app lo canjea usando PKCE.
@@ -60,33 +116,8 @@ No subas `client_secret*.json` al repositorio (ya está en `.gitignore`).
 Estados: `Requiere autorización` (sin tokens, 401, `invalid_grant`, revocado), `Desconectado` (sin red; se reintenta con
 backoff), `Conectado` (con hora de la última sincronización). Un fallo de Gmail nunca bloquea el resto de la app.
 
-## 4. Revocar el acceso
+## Revocar el acceso
 
 - Desde la app: **Revocar Gmail** llama al endpoint de revocación de Google, borra los tokens locales y el cursor.
 - Manual (por si la app no puede contactar a Google): <https://myaccount.google.com/permissions> > Vivanet Pay > **Quitar acceso**.
 
-## 5. Verificación de OAuth y distribución comercial (R-06)
-
-`gmail.readonly` es un **scope restringido**. Implicaciones:
-
-- Con la app en modo **Prueba** solo funcionan los usuarios de prueba listados y los tokens caducan a los 7 días.
-- Para distribuir a clientes reales hay que publicar la app ("En producción") y pasar la **verificación de OAuth** de Google:
-  política de privacidad pública, dominio verificado, justificación del scope, video de demostración y descripción del uso de los datos.
-- Los scopes restringidos pueden exigir además una **evaluación de seguridad anual (CASA)** por un evaluador autorizado, con costo y tiempo
-  de revisión; planearlo antes del lanzamiento comercial. Mientras no se verifique, los usuarios verán la advertencia "Google no ha verificado esta app".
-- Alternativa de modelo: que cada cliente cree su propio proyecto de Google Cloud (modo "Interno" en Workspace, o Prueba con su cuenta);
-  evita la verificación central pero complica la instalación.
-- Se debe cumplir la política de "Limited Use" de Google: los datos de Gmail solo se usan para detectar pagos entrantes, no se transfieren ni se usan para publicidad.
-
-## 6. Limitación importante: Nequi puede no enviar correo (IDD 2.3, R-01)
-
-Las transferencias entre cuentas Nequi **no necesariamente generan un correo por cada operación**. Por eso Gmail no es una fuente
-garantizada de todos los pagos Nequi: la ruta prevista para esas notificaciones es el conector Android (MacroDroid). Gmail sirve
-para entidades que sí envían correo (p. ej. Bancolombia, Davivienda, DaviPlata, sujetos a validación con correos reales).
-Verifica con tu cuenta qué correos llegan antes de depender de este canal.
-
-## 7. Datos que se leen y envían al núcleo
-
-Solo mensajes de los remitentes configurados: texto (text/plain, o HTML convertido a texto), y las cabeceras `From`, `Subject`,
-`Date`, `Message-ID`, `Reply-To`, `Return-Path`, `Authentication-Results`, `ARC-Authentication-Results` y `Received-SPF`
-(para evaluar autenticidad, IDD 8.2). Los adjuntos se ignoran.

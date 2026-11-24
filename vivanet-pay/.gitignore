@@ -7,3 +7,6 @@ target-*/
 # Credenciales OAuth de Google (nunca al repositorio)
 client_secret*.json
 __pycache__/
+
+# Credenciales OAuth empaquetadas por el CI (nunca al repositorio)
+src/main/resources/vivanetpay/gmail/

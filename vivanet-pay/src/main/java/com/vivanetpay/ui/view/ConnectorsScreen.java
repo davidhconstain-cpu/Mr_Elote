@@ -1,6 +1,9 @@
 package com.vivanetpay.ui.view;
 
+import com.vivanetpay.domain.ConnectorType;
 import com.vivanetpay.integration.AuthorizableConnector;
+import com.vivanetpay.integration.gmail.GmailCredentials;
+import com.vivanetpay.integration.gmail.GmailSettings;
 import com.vivanetpay.integration.Connector;
 import com.vivanetpay.app.LanReceiverSetup;
 import com.vivanetpay.integration.android.AndroidWebhookConnector;
@@ -24,6 +27,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 
@@ -59,7 +63,13 @@ public final class ConnectorsScreen implements Screen {
     /** Instantánea calculada fuera del hilo de UI (isAuthorized puede tocar el almacén de secretos). */
     private record Snapshot(Connector connector, ConnectorsViewModel vm, String account,
                             ConnectorsViewModel.AndroidInfo android, List<LanAddresses.Candidate> lan,
-                            String configuredLanIp) {
+                            String configuredLanIp, Path gmailFile, boolean gmailCreds) {
+    }
+
+    /** Ruta del archivo de credenciales de Google en este equipo (la configurada o la predeterminada). */
+    private Path gmailCredentialsFile() {
+        return GmailSettings.from(ctx.app.config().connectorSettings(ConnectorType.GMAIL), ctx.app.config().dataDir())
+                .clientSecretsPath();
     }
 
     @Override
@@ -70,7 +80,9 @@ public final class ConnectorsScreen implements Screen {
                 c instanceof AndroidWebhookConnector a ? ConnectorsViewModel.AndroidInfo.of(a) : null,
                 c instanceof AndroidWebhookConnector ? LanAddresses.detect() : List.<LanAddresses.Candidate>of(),
                 c instanceof AndroidWebhookConnector ? LanReceiverSetup.configuredLanIp(
-                        ctx.app.config().connectorSettings(c.type())) : null)).toList(),
+                        ctx.app.config().connectorSettings(c.type())) : null,
+                c.type() == ConnectorType.GMAIL ? gmailCredentialsFile() : null,
+                c.type() == ConnectorType.GMAIL && GmailCredentials.hasValid(gmailCredentialsFile()))).toList(),
                 this::render, e -> Ui.error("No se pudo leer el estado de los conectores", Ui.describe(e)));
     }
 
@@ -131,9 +143,13 @@ public final class ConnectorsScreen implements Screen {
         buttons.getChildren().add(pause);
         if (vm.canAuthorize()) {
             AuthorizableConnector a = (AuthorizableConnector) c;
-            Button auth = new Button(vm.authorized() ? "Volver a autorizar" : "Autorizar");
+            Button auth = new Button(vm.authorized() ? "Volver a autorizar" : "Autorizar " + vm.name());
             auth.setTooltip(new javafx.scene.control.Tooltip("Abre el navegador para que inicies sesión en Google."));
             auth.setOnAction(e -> {
+                if (snap.gmailFile() != null && !snap.gmailCreds()) {
+                    offerCredentialsLoad(snap.gmailFile());
+                    return;
+                }
                 auth.setDisable(true);
                 Ui.info("Autorización de " + vm.name(), "Se abrirá el navegador. Inicia sesión y concede el permiso de "
                         + "solo lectura. Esta ventana se actualizará cuando termine.");
@@ -159,6 +175,13 @@ public final class ConnectorsScreen implements Screen {
                 }
             });
             buttons.getChildren().addAll(auth, revoke);
+            if (snap.gmailFile() != null) {
+                Button load = new Button(snap.gmailCreds() ? "Reemplazar credenciales…" : "Cargar archivo de credenciales…");
+                load.setTooltip(new javafx.scene.control.Tooltip(
+                        "Elige el archivo client_secret….json descargado de Google Cloud (App de escritorio)."));
+                load.setOnAction(e -> loadCredentials(snap.gmailFile(), load));
+                buttons.getChildren().add(load);
+            }
         }
         if (vm.canTestReception()) {
             Button test = new Button("Probar recepción");
@@ -212,6 +235,45 @@ public final class ConnectorsScreen implements Screen {
             box.getChildren().add(wifiSection(snap, android));
         }
         return box;
+    }
+
+    /** Sin credenciales: explica con la ruta exacta y ofrece cargar el archivo. */
+    private void offerCredentialsLoad(Path file) {
+        ButtonType load = new ButtonType("Cargar archivo de credenciales…", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        javafx.scene.control.Alert a = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.WARNING,
+                GmailCredentials.missingMessage(file), load, ButtonType.CLOSE);
+        a.setTitle("Falta el archivo de credenciales de Google");
+        a.setHeaderText("Falta el archivo de credenciales de Google");
+        com.vivanetpay.ui.Theme.apply(a.getDialogPane());
+        if (a.showAndWait().filter(b -> b == load).isPresent()) {
+            loadCredentials(file, null);
+        }
+    }
+
+    /** Elige un .json, lo valida y lo copia (en segundo plano) a la carpeta de datos. */
+    private void loadCredentials(Path target, Button source) {
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle("Elige el archivo de credenciales de Google (client_secret….json)");
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Archivos JSON (*.json)", "*.json"));
+        java.io.File f = fc.showOpenDialog(root.getScene() == null ? null : root.getScene().getWindow());
+        if (f == null) {
+            return;
+        }
+        if (source != null) {
+            source.setDisable(true);
+        }
+        Background.run(() -> {
+            GmailCredentials.install(f.toPath(), target);
+            return Boolean.TRUE;
+        }, ok -> {
+            Ui.info("Credenciales de Google", "Credenciales cargadas. Ahora pulsa «Autorizar Gmail».");
+            refresh();
+        }, err -> {
+            if (source != null) {
+                source.setDisable(false);
+            }
+            Ui.error("No se pudieron cargar las credenciales", Ui.describe(err));
+        });
     }
 
     /** "Recibir desde mi teléfono en esta Wi-Fi" (DP-03/DP-04): elegir la IP privada del PC y copiar la URL. */

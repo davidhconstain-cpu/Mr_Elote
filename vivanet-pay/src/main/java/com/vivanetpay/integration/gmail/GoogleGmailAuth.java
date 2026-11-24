@@ -21,9 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -71,21 +68,7 @@ public final class GoogleGmailAuth implements GmailAuth {
     }
 
     private AuthorizationCodeFlow flow() throws IOException {
-        if (clientSecretsPath == null || !Files.isRegularFile(clientSecretsPath)) {
-            throw new GmailAuthException("Falta el archivo de credenciales de Google (client_secret.json). "
-                    + "Configura gmail.clientSecretsPath; consulta docs/GMAIL_OAUTH.md.");
-        }
-        GoogleClientSecrets secrets;
-        try (Reader r = Files.newBufferedReader(clientSecretsPath, StandardCharsets.UTF_8)) {
-            secrets = GoogleClientSecrets.load(json, r);
-        } catch (IOException | RuntimeException e) {
-            throw new GmailAuthException("El archivo de credenciales de Google no es válido. "
-                    + "Descárgalo de nuevo desde Google Cloud (cliente 'App de escritorio').");
-        }
-        if (secrets.getDetails() == null || secrets.getDetails().getClientId() == null) {
-            throw new GmailAuthException("El archivo de credenciales de Google no es válido. "
-                    + "Descárgalo de nuevo desde Google Cloud (cliente 'App de escritorio').");
-        }
+        GoogleClientSecrets secrets = GmailCredentials.find(clientSecretsPath).secrets();
         return new GoogleAuthorizationCodeFlow.Builder(transport(), json, secrets, List.of(SCOPE))
                 .setDataStoreFactory(dataStore)
                 .setAccessType("offline")

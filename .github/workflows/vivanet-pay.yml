@@ -84,6 +84,18 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Incluir credenciales de Gmail del producto (si existen)
+        shell: bash
+        env:
+          GMAIL_JSON: ${{ secrets.GMAIL_CLIENT_SECRET_JSON }}
+        run: |
+          if [ -n "$GMAIL_JSON" ]; then
+            mkdir -p src/main/resources/vivanetpay/gmail
+            printf '%s' "$GMAIL_JSON" > src/main/resources/vivanetpay/gmail/client_secret.json
+            echo "Credenciales de Gmail incluidas en el instalador."
+          else
+            echo "::notice::El instalador se genera SIN credenciales de Gmail incluidas (falta el secreto GMAIL_CLIENT_SECRET_JSON). El usuario tendrá que cargar su propio archivo."
+          fi
       - name: Compilar y reunir dependencias
         shell: bash
         run: |
